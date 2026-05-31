@@ -6,7 +6,12 @@
 <meta name="theme-color" content="#15110d">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>PyroLog — учёт выездов</title>
+<meta name="apple-mobile-web-app-title" content="PyroLog">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json">
+<title>PyroLog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -148,7 +153,7 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
     <div style="width:100%;margin:8px 0 4px">
       <div class="lbl">Логин (email)</div>
       <input class="fval" id="login-email" type="email"
-        placeholder="dima@pyrolog.local"
+        placeholder="name@pyrolog.local"
         autocomplete="username"
         onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()"/>
     </div>
@@ -298,13 +303,27 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
   <div class="topbar"><span class="back-btn" onclick="go('s-team')">← Назад</span><span class="topbar-title" style="font-size:16px">Новый сотрудник</span></div>
   <div class="scroll">
     <div><div class="lbl">Имя</div><input class="fval" id="ae-name" placeholder="Например: Сергей"/></div>
-    <div><div class="lbl">Номер телефона</div><input class="fval mono" id="ae-phone" type="tel" placeholder="+79001234567"/></div>
+    <div>
+      <div class="lbl">Логин (email для входа)</div>
+      <input class="fval" id="ae-email" type="email" placeholder="sergey@pyrolog.local"/>
+      <div style="font-size:11px;color:var(--txt3);margin-top:4px">Формат любой — можно pyrolog.local</div>
+    </div>
+    <div>
+      <div class="lbl">Временный пароль</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="fval mono" id="ae-pass" type="text" placeholder="Минимум 6 символов" style="flex:1"/>
+        <button class="eq-btn" onclick="genPass()" style="width:auto;padding:0 14px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;height:44px">Создать</button>
+      </div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:4px">Сотрудник сможет войти сразу после добавления</div>
+    </div>
     <div><div class="lbl">Должность</div><input class="fval" id="ae-role" placeholder="Пиротехник" value="Пиротехник"/></div>
     <div><div class="lbl">Уровень доступа</div><select class="fval" id="ae-perm">
       <option value="worker">Работник — заполняет выезды</option>
       <option value="manager">Руководитель — управляет складом и командой</option>
     </select></div>
-    <button class="btn btn-primary" onclick="saveEmp()">Добавить сотрудника</button>
+    <div id="ae-error" style="color:var(--red);font-size:12px;min-height:18px"></div>
+    <button class="btn btn-primary" id="ae-btn" onclick="saveEmp()">Добавить сотрудника</button>
+    <div id="ae-success" style="display:none;background:var(--green-bg);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--green);line-height:1.7"></div>
   </div>
 </div>
 
@@ -379,6 +398,7 @@ const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const ADMIN_EMAIL='admin@pyrolog.local';
 const {createClient}=supabase;
 const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const sbReg=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 
 let db={employees:[],stock:[],trips:[],rates:{km:30,fuel:12,wage:3000},workRates:[]};
 let curScreen='s-login';
@@ -647,22 +667,49 @@ function renderTeam(){
       <div class="sep" style="margin:10px 0"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--txt2)">
         <span>Выездов: <b style="color:var(--txt)" class="mono">${mine.length}</b> · Пробег: <b style="color:var(--txt)" class="mono">${km} км</b></span>
-        ${isAdmin()?`<button class="eq-btn del" onclick="delEmp(${i})" style="width:26px;height:26px;font-size:12px">🗑</button>`:''}
+        ${canManage()?`<button class="eq-btn del" onclick="delEmp(${i})" style="width:26px;height:26px;font-size:12px">🗑</button>`:''}
       </div>
     </div>`;
   }).join('');
   document.getElementById('team-list').innerHTML=html;
 }
-function delEmp(i){if(!confirm('Удалить сотрудника «'+db.employees[i].name+'»?'))return;db.employees.splice(i,1);saveDB(db);renderTeam()}
-function saveEmp(){
+function delEmp(i){
+  const emp=db.employees[i];
+  if(!confirm('Удалить «'+emp.name+'»?\n\nОн сразу потеряет доступ к данным.\nАккаунт входа ('+emp.email+') останется в Supabase — удали его там вручную при необходимости.'))return;
+  db.employees.splice(i,1);saveDB(db);renderTeam();
+}
+async function saveEmp(){
   const name=document.getElementById('ae-name').value.trim();
+  const email=(document.getElementById('ae-email').value||'').trim();
+  const pass=(document.getElementById('ae-pass').value||'').trim();
   if(!name){shake('ae-name');return}
+  if(!email){shake('ae-email');return}
+  if(pass.length<6){setErr('ae-error','Пароль — минимум 6 символов');return}
+  if(db.employees.find(e=>e.email===email)){setErr('ae-error','Сотрудник с таким email уже есть');return}
+  const btn=document.getElementById('ae-btn');btn.disabled=true;btn.textContent='Создаём...';
+  setErr('ae-error','');document.getElementById('ae-success').style.display='none';
+  const {data,error}=await sbReg.auth.signUp({email,password:pass});
+  if(error&&error.message!=='User already registered'){
+    setErr('ae-error','Ошибка Supabase: '+error.message);btn.disabled=false;btn.textContent='Добавить сотрудника';return;
+  }
   const palette=[['#ff7d4d','rgba(255,87,34,.18)'],['#4da3ff','rgba(77,163,255,.18)'],['#e8a13c','rgba(232,161,60,.18)'],['#5fc77f','rgba(95,199,127,.18)'],['#c98bff','rgba(170,100,255,.18)']];
   const p=palette[db.employees.length%palette.length];
-  db.employees.push({name,role:document.getElementById('ae-role').value.trim()||'Пиротехник',perm:document.getElementById('ae-perm').value,phone:(document.getElementById('ae-phone').value||'').trim(),c:p[0],bg:p[1]});
+  db.employees.push({name,role:document.getElementById('ae-role').value.trim()||'Пиротехник',perm:document.getElementById('ae-perm').value,email,c:p[0],bg:p[1]});
   saveDB(db);
-  document.getElementById('ae-name').value='';document.getElementById('ae-phone').value='';document.getElementById('ae-role').value='Пиротехник';
-  go('s-team');
+  document.getElementById('ae-name').value='';
+  document.getElementById('ae-email').value='';
+  document.getElementById('ae-pass').value='';
+  document.getElementById('ae-role').value='Пиротехник';
+  btn.disabled=false;btn.textContent='Добавить сотрудника';
+  const ok=document.getElementById('ae-success');
+  ok.style.display='block';
+  ok.innerHTML='Сотрудник добавлен!<br>Передай данные для входа:<br><b>Логин: '+esc(email)+'</b><br><b>Пароль: '+esc(pass)+'</b>';
+}
+function genPass(){
+  const chars='abcdefhjkmnpqrstuvwxyz23456789';
+  let p='';for(let i=0;i<8;i++)p+=chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('ae-pass').value=p;
+  setErr('ae-error','');
 }
 
 /* ============ FINANCE ============ */
