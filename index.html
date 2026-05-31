@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#15110d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>PyroLog — учёт выездов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#15110d; --bg2:#1d1813; --bg3:#26201a; --line:#352c23; --line2:#473b2f;
+  --txt:#f0e9df; --txt2:#a89a89; --txt3:#6f6356;
+  --ember:#ff5722; --ember2:#ff7d4d; --ember-bg:rgba(255,87,34,.14);
+  --gold:#e8a13c; --gold-bg:rgba(232,161,60,.14);
+  --green:#5fc77f; --green-bg:rgba(95,199,127,.14);
+  --red:#ff5252; --red-bg:rgba(255,82,82,.14);
+  --blue:#4da3ff; --blue-bg:rgba(77,163,255,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--txt);font-size:15px;line-height:1.4;overflow:hidden;-webkit-font-smoothing:antialiased}
+.mono{font-family:'JetBrains Mono',monospace}
+.app{max-width:440px;margin:0 auto;height:100vh;height:100dvh;display:flex;flex-direction:column;background:var(--bg);position:relative;overflow:hidden}
+.screen{flex:1;display:flex;flex-direction:column;overflow:hidden;animation:fade .25s ease}
+.hidden{display:none!important}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.topbar{padding:16px 18px 12px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--bg2),var(--bg));flex-shrink:0;padding-top:max(16px,env(safe-area-inset-top))}
+.logo-mark{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--ember),#c8340a);display:flex;align-items:center;justify-content:center;font-size:17px;color:#fff;flex-shrink:0;box-shadow:0 0 18px rgba(255,87,34,.4)}
+.topbar-title{font-size:19px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.topbar-sub{margin-left:auto;font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;text-align:right}
+.userbtn{margin-left:auto;display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--bg3);border:1px solid var(--line2);border-radius:30px;padding:4px 10px 4px 5px}
+.userbtn .avatar{width:24px;height:24px;font-size:10px;border-radius:6px}
+.userbtn-name{font-size:12px;font-weight:500}
+.userbtn-role{font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px}
+.back-btn{font-size:13px;color:var(--ember2);cursor:pointer;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.scroll{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
+.scroll::-webkit-scrollbar{width:0}
+.navbar{display:flex;border-top:1px solid var(--line);background:var(--bg2);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom)}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 12px;font-size:10px;color:var(--txt3);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:color .15s;position:relative}
+.nav-item svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7}
+.nav-item.active{color:var(--ember2)}
+.nav-item.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:28px;height:2px;background:var(--ember);border-radius:0 0 2px 2px;box-shadow:0 0 8px var(--ember)}
+.lbl{font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:7px}
+.fval{background:var(--bg2);border:1px solid var(--line2);border-radius:9px;padding:11px 13px;color:var(--txt);font-size:15px;width:100%;font-family:'Oswald',sans-serif;transition:border-color .15s}
+.fval::placeholder{color:var(--txt3)}
+.fval:focus{outline:none;border-color:var(--ember)}
+select.fval{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236f6356' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
+textarea.fval{resize:none;min-height:74px}
+input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monospace}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metric{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;position:relative;overflow:hidden}
+.metric::after{content:'';position:absolute;top:0;right:0;width:40px;height:40px;background:radial-gradient(circle at top right,var(--ember-bg),transparent 70%)}
+.metric-lbl{font-size:10px;color:var(--txt2);text-transform:uppercase;letter-spacing:1px}
+.metric-val{font-size:30px;font-weight:700;margin-top:3px;line-height:1;font-family:'JetBrains Mono',monospace}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;cursor:pointer;transition:border-color .15s,transform .1s}
+.card:active{transform:scale(.99)}
+.card.flat{cursor:default}
+.card.flat:active{transform:none}
+.card:hover{border-color:var(--line2)}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.card-name{font-size:16px;font-weight:500}
+.card-sub{font-size:12px;color:var(--txt2);margin-top:3px;line-height:1.5}
+.chip{font-size:12px;border-radius:30px;padding:6px 13px;cursor:pointer;transition:all .15s;font-weight:500;text-transform:uppercase;letter-spacing:.5px;border:1px solid transparent;user-select:none}
+.chip-em{background:var(--ember-bg);color:var(--ember2);border-color:rgba(255,87,34,.3)}
+.chip-green{background:var(--green-bg);color:var(--green);border-color:rgba(95,199,127,.3)}
+.chip-gold{background:var(--gold-bg);color:var(--gold);border-color:rgba(232,161,60,.3)}
+.chip-blue{background:var(--blue-bg);color:var(--blue);border-color:rgba(77,163,255,.3)}
+.chip-off{background:transparent;color:var(--txt3);border:1px dashed var(--line2)}
+.eq-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.eq-row:last-child{border-bottom:none}
+.eq-name{font-size:15px}
+.eq-meta{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
+.eq-controls{display:flex;align-items:center;gap:9px}
+.eq-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line2);background:var(--bg3);color:var(--txt);font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:all .12s;font-family:'JetBrains Mono',monospace;flex-shrink:0}
+.eq-btn:active{background:var(--ember);border-color:var(--ember);color:#fff}
+.eq-btn.del:active{background:var(--red);border-color:var(--red)}
+.eq-qty{font-size:17px;font-weight:700;min-width:30px;text-align:center;font-family:'JetBrains Mono',monospace}
+.qty-input{width:56px;text-align:center;background:var(--bg3);border:1px solid var(--line2);border-radius:8px;color:var(--txt);font-size:16px;font-weight:700;padding:5px 4px;font-family:'JetBrains Mono',monospace;-webkit-appearance:none;-moz-appearance:textfield}
+.qty-input::-webkit-outer-spin-button,.qty-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.qty-input:focus{outline:none;border-color:var(--ember)}
+.pick-row{cursor:pointer}
+.pick-row:active{border-color:var(--ember)}
+.tag{font-size:8px;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-left:7px;vertical-align:middle}
+.tag-ammo{background:var(--red-bg);color:var(--red)}
+.tag-pyro{background:var(--gold-bg);color:var(--gold)}
+.tag-equip{background:var(--blue-bg);color:var(--blue)}
+.tag-cons{background:var(--bg3);color:var(--txt2)}
+.btn{border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:600;text-align:center;width:100%;cursor:pointer;transition:all .15s;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:1px}
+.btn-primary{background:linear-gradient(135deg,var(--ember),#d83e12);color:#fff;box-shadow:0 4px 18px rgba(255,87,34,.35)}
+.btn-primary:active{transform:translateY(1px);box-shadow:0 2px 10px rgba(255,87,34,.3)}
+.btn-ghost{background:var(--bg2);border:1px solid var(--line2);color:var(--txt2);margin-top:6px}
+.btn-ghost:active{background:var(--bg3)}
+.step-dots{display:flex;gap:6px;justify-content:center;margin-bottom:4px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--line2);transition:all .25s}
+.dot.active{background:var(--ember);width:22px;border-radius:4px;box-shadow:0 0 10px var(--ember)}
+.note-box{border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.55;display:flex;gap:8px;align-items:flex-start}
+.note-gold{background:var(--gold-bg);color:var(--gold)}
+.note-red{background:var(--red-bg);color:var(--red)}
+.note-blue{background:var(--blue-bg);color:var(--blue)}
+.note-box svg{width:16px;height:16px;flex-shrink:0;margin-top:1px;stroke:currentColor;fill:none;stroke-width:2}
+.stock-wrap{height:5px;background:var(--bg3);border-radius:3px;margin-top:6px;overflow:hidden}
+.stock-bar{height:5px;border-radius:3px;transition:width .4s}
+.avatar{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;font-family:'JetBrains Mono',monospace}
+.success-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;gap:1.2rem}
+.success-icon{width:78px;height:78px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;animation:pop .4s cubic-bezier(.2,1.4,.4,1)}
+.success-icon svg{width:40px;height:40px;stroke:var(--green);fill:none;stroke-width:3}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.success-title{font-size:22px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+.success-sub{font-size:14px;color:var(--txt2);line-height:1.7}
+.sep{height:1px;background:var(--line)}
+.section-lbl{font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:1.5px;margin-top:6px}
+.empty{text-align:center;color:var(--txt3);font-size:13px;padding:24px 0}
+.crew-grid{display:flex;gap:8px;flex-wrap:wrap}
+.summary-line{font-size:14px;color:var(--txt2);line-height:1.8}
+.summary-line b{color:var(--txt);font-weight:600}
+/* login */
+.login-wrap{flex:1;display:flex;flex-direction:column;justify-content:center;padding:30px 24px;gap:8px}
+.login-logo{width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,var(--ember),#c8340a);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 6px;box-shadow:0 0 30px rgba(255,87,34,.5)}
+.login-title{text-align:center;font-size:26px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.login-sub{text-align:center;font-size:13px;color:var(--txt2);margin-bottom:18px}
+.login-row{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line2);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s;margin-bottom:8px}
+.login-row:active{border-color:var(--ember)}
+.login-role{margin-left:auto;font-size:9px;padding:3px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.role-admin{background:var(--ember-bg);color:var(--ember2)}
+.role-manager{background:var(--gold-bg);color:var(--gold)}
+.role-worker{background:var(--blue-bg);color:var(--blue)}
+.added-row{display:flex;align-items:center;gap:9px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:7px}
+.dropdown-add{position:relative}
+.muted-note{font-size:11px;color:var(--txt3);text-align:center;margin-top:4px}
+.fab-add{display:flex;align-items:center;gap:7px;justify-content:center}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="app">
+
+<!-- ===== LOGIN ===== -->
+<div class="screen" id="s-login">
+  <div class="login-wrap">
+    <div class="login-logo">🔥</div>
+    <div class="login-title">PyroLog</div>
+    <div class="login-sub">Вход в систему</div>
+    <div style="width:100%;margin:8px 0 4px">
+      <div class="lbl">Логин (email)</div>
+      <input class="fval" id="login-email" type="email"
+        placeholder="dima@pyrolog.local"
+        autocomplete="username"
+        onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()"/>
+    </div>
+    <div style="width:100%;margin:4px 0">
+      <div class="lbl">Пароль</div>
+      <input class="fval" id="login-pass" type="password"
+        placeholder="••••••••"
+        autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <div id="login-error" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:4px"></div>
+    <button class="btn btn-primary" id="login-btn" onclick="doLogin()">Войти</button>
+    <div class="muted-note" style="margin-top:12px">Логин выдаёт руководитель</div>
+  </div>
+</div>
+
+<!-- ===== HOME ===== -->
+<div class="screen hidden" id="s-home">
+  <div class="topbar"><div class="logo-mark">🔥</div><span class="topbar-title">PyroLog</span><div class="userbtn" id="user-btn" onclick="openProfile()"></div></div>
+  <div class="scroll">
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-lbl">Выездов</div><div class="metric-val" id="m-trips">0</div></div>
+      <div class="metric"><div class="metric-lbl">Сотрудников</div><div class="metric-val" id="m-emp">0</div></div>
+      <div class="metric"><div class="metric-lbl">Позиций склад</div><div class="metric-val" id="m-stock">0</div></div>
+      <div class="metric"><div class="metric-lbl">Тревог склад</div><div class="metric-val" id="m-alerts" style="color:var(--red)">0</div></div>
+    </div>
+    <div class="section-lbl">Последние выезды</div>
+    <div id="trips-list"></div>
+    <button class="btn btn-primary" onclick="startNew()">+ Новый выезд</button>
+  </div>
+  <div class="navbar" id="nav-home"></div>
+</div>
+
+<!-- ===== TRIP DETAIL ===== -->
+<div class="screen hidden" id="s-trip">
+  <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Назад</span><span class="topbar-title" id="trip-title" style="font-size:16px"></span></div>
+  <div class="scroll" id="trip-detail"></div>
+</div>
+
+<!-- ===== NEW STEP 1 ===== -->
+<div class="screen hidden" id="s-new1">
+  <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Отмена</span><span class="topbar-title" style="font-size:16px">Новый выезд</span><span class="topbar-sub">1 / 4</span></div>
+  <div class="scroll">
+    <div class="step-dots"><div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    <div><div class="lbl">Название проекта</div><input class="fval" id="n-project" placeholder="Например: Мажор"/></div>
+    <div><div class="lbl">Дата</div><input class="fval" id="n-date" type="date"/></div>
+    <div><div class="lbl">Тип работ</div><div class="crew-grid" id="type-chips"></div></div>
+    <button class="btn btn-primary" onclick="step1()">Далее →</button>
+  </div>
+</div>
+
+<!-- ===== NEW STEP 2: crew ===== -->
+<div class="screen hidden" id="s-new2">
+  <div class="topbar"><span class="back-btn" onclick="go('s-new1')">← Назад</span><span class="topbar-title" style="font-size:16px">Новый выезд</span><span class="topbar-sub">2 / 4</span></div>
+  <div class="scroll">
+    <div class="step-dots"><div class="dot"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
+    <div>
+      <div class="lbl">Бригада <span id="crew-count" style="color:var(--ember2)"></span></div>
+      <input class="fval" id="crew-search" placeholder="🔍 Поиск сотрудника..." oninput="renderCrewChips()" style="margin-bottom:10px"/>
+      <div class="crew-grid" id="crew-chips" style="max-height:200px;overflow-y:auto"></div>
+    </div>
+    <div><div class="lbl">Водитель</div><select class="fval" id="n-driver"><option value="">— выбрать —</option></select></div>
+    <div><div class="lbl">Километраж</div><input class="fval mono" id="n-km" type="number" placeholder="0" min="0"/></div>
+    <button class="btn btn-primary" onclick="step2()">Далее →</button>
+  </div>
+</div>
+
+<!-- ===== NEW STEP 3: equipment ===== -->
+<div class="screen hidden" id="s-new3">
+  <div class="topbar"><span class="back-btn" onclick="go('s-new2')">← Назад</span><span class="topbar-title" style="font-size:16px">Новый выезд</span><span class="topbar-sub">3 / 4</span></div>
+  <div class="scroll">
+    <div class="step-dots"><div class="dot"></div><div class="dot"></div><div class="dot active"></div><div class="dot"></div></div>
+    <div>
+      <div class="lbl">Добавить позицию</div>
+      <input class="fval" id="equip-search" placeholder="🔍 Поиск по складу..." oninput="renderEquipAvail()" style="margin-bottom:10px"/>
+      <div id="equip-avail" style="max-height:190px;overflow-y:auto"></div>
+    </div>
+    <div class="lbl" style="margin-top:4px">Выбрано на выезд <span id="chosen-count" style="color:var(--ember2)"></span></div>
+    <div id="equip-chosen"></div>
+    <button class="btn btn-primary" onclick="go('s-new4')">Далее →</button>
+  </div>
+</div>
+
+<!-- ===== NEW STEP 4 ===== -->
+<div class="screen hidden" id="s-new4">
+  <div class="topbar"><span class="back-btn" onclick="go('s-new3')">← Назад</span><span class="topbar-title" style="font-size:16px">Новый выезд</span><span class="topbar-sub">4 / 4</span></div>
+  <div class="scroll">
+    <div class="step-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot active"></div></div>
+    <div><div class="lbl">Примечания / отклонения</div><textarea class="fval" id="n-notes" placeholder="Что нестандартного: приписали, сломали, достали..."></textarea></div>
+    <div class="note-box note-gold"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>Примечания видит руководитель — пишем честно</span></div>
+    <div><div class="lbl">Проверь перед отправкой</div><div class="card flat" id="summary-card"></div></div>
+    <button class="btn btn-primary" onclick="submitTrip()">Отправить отчёт</button>
+  </div>
+</div>
+
+<!-- ===== SUCCESS ===== -->
+<div class="screen hidden" id="s-success">
+  <div class="success-screen">
+    <div class="success-icon"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+    <div class="success-title">Отчёт сохранён</div>
+    <div class="success-sub">Склад списан автоматически.<br>Руководитель уже видит выезд.</div>
+    <button class="btn btn-primary" style="margin-top:1rem;max-width:200px" onclick="go('s-home')">На главную</button>
+  </div>
+</div>
+
+<!-- ===== STOCK ===== -->
+<div class="screen hidden" id="s-stock">
+  <div class="topbar"><div class="logo-mark" style="background:linear-gradient(135deg,var(--blue),#2670c4);box-shadow:0 0 18px rgba(77,163,255,.4)">📦</div><span class="topbar-title" style="font-size:17px">Склад</span><span class="topbar-sub" id="stock-role"></span></div>
+  <div class="scroll" id="stock-list"></div>
+  <div class="navbar" id="nav-stock"></div>
+</div>
+
+<!-- ===== ADD STOCK (manager) ===== -->
+<div class="screen hidden" id="s-addstock">
+  <div class="topbar"><span class="back-btn" onclick="go('s-stock')">← Назад</span><span class="topbar-title" style="font-size:16px">Новая позиция склада</span></div>
+  <div class="scroll">
+    <div><div class="lbl">Название</div><input class="fval" id="as-name" placeholder="Например: Фитиль пиротехнический"/></div>
+    <div><div class="lbl">Категория</div><select class="fval" id="as-type">
+      <option value="pyro">Пиротехника</option>
+      <option value="ammo">Оружие и боеприпасы</option>
+      <option value="equip">Оборудование</option>
+      <option value="cons">Расходники</option>
+    </select></div>
+    <div class="metric-grid">
+      <div><div class="lbl">Кол-во</div><input class="fval mono" id="as-qty" type="number" placeholder="0" min="0"/></div>
+      <div><div class="lbl">Ед. изм.</div><input class="fval" id="as-unit" placeholder="шт" value="шт"/></div>
+    </div>
+    <div><div class="lbl">Мин. остаток (тревога ниже)</div><input class="fval mono" id="as-min" type="number" placeholder="0" min="0"/></div>
+    <div><div class="lbl">Учёт</div><select class="fval" id="as-ret">
+      <option value="0">Списывается — расходник / пиротехника</option>
+      <option value="1">Возвращается на склад — многоразовое</option>
+    </select></div>
+    <div><div class="lbl">Цена для заказчика (₽ за единицу)</div><input class="fval mono" id="as-price" type="number" placeholder="0" min="0"/></div>
+    <button class="btn btn-primary" onclick="saveStock()">Добавить на склад</button>
+  </div>
+</div>
+
+<!-- ===== TEAM ===== -->
+<div class="screen hidden" id="s-team">
+  <div class="topbar"><div class="logo-mark" style="background:linear-gradient(135deg,var(--green),#3a9d5a);box-shadow:0 0 18px rgba(95,199,127,.4)">👥</div><span class="topbar-title" style="font-size:17px">Команда</span><span class="topbar-sub" id="team-role"></span></div>
+  <div class="scroll" id="team-list"></div>
+  <div class="navbar" id="nav-team"></div>
+</div>
+
+<!-- ===== ADD EMPLOYEE (manager) ===== -->
+<div class="screen hidden" id="s-addemp">
+  <div class="topbar"><span class="back-btn" onclick="go('s-team')">← Назад</span><span class="topbar-title" style="font-size:16px">Новый сотрудник</span></div>
+  <div class="scroll">
+    <div><div class="lbl">Имя</div><input class="fval" id="ae-name" placeholder="Например: Сергей"/></div>
+    <div><div class="lbl">Номер телефона</div><input class="fval mono" id="ae-phone" type="tel" placeholder="+79001234567"/></div>
+    <div><div class="lbl">Должность</div><input class="fval" id="ae-role" placeholder="Пиротехник" value="Пиротехник"/></div>
+    <div><div class="lbl">Уровень доступа</div><select class="fval" id="ae-perm">
+      <option value="worker">Работник — заполняет выезды</option>
+      <option value="manager">Руководитель — управляет складом и командой</option>
+    </select></div>
+    <button class="btn btn-primary" onclick="saveEmp()">Добавить сотрудника</button>
+  </div>
+</div>
+
+<!-- ===== PRICE / RATES (manager) ===== -->
+<div class="screen hidden" id="s-price">
+  <div class="topbar"><div class="logo-mark" style="background:linear-gradient(135deg,var(--gold),#b97d1f);box-shadow:0 0 18px rgba(232,161,60,.4)">₽</div><span class="topbar-title" style="font-size:17px">Прайс и ставки</span></div>
+  <div class="scroll" id="price-body"></div>
+  <div class="navbar" id="nav-price"></div>
+</div>
+
+<!-- ===== STATISTICS (manager) ===== -->
+<div class="screen hidden" id="s-stat">
+  <div class="topbar"><div class="logo-mark" style="background:linear-gradient(135deg,#9b7fe6,#6d4fc4);box-shadow:0 0 18px rgba(155,127,230,.4)">📊</div><span class="topbar-title" style="font-size:17px">Статистика</span></div>
+  <div class="scroll" id="stat-body"></div>
+  <div class="navbar" id="nav-stat"></div>
+</div>
+
+<!-- ===== INVOICE (manager) ===== -->
+<div class="screen hidden" id="s-invoice">
+  <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Назад</span><span class="topbar-title" style="font-size:16px">Счёт по выезду</span></div>
+  <div class="scroll" id="invoice-body"></div>
+</div>
+
+</div>
+
+<script>
+/* ============ DATA ============ */
+const DB_KEY='pyrolog_v6';
+const SEED={
+  employees:[
+    {name:'Дима',role:'Старший пиротехник',perm:'manager',c:'#ff7d4d',bg:'rgba(255,87,34,.18)',phone:'+79000000001',email:'dima@pyrolog.local'},
+    {name:'Даня',role:'Пиротехник',perm:'worker',c:'#4da3ff',bg:'rgba(77,163,255,.18)',phone:'+79000000002',email:'danya@pyrolog.local'},
+    {name:'Игорь',role:'Водитель / техник',perm:'worker',c:'#e8a13c',bg:'rgba(232,161,60,.18)',phone:'+79000000003',email:'igor@pyrolog.local'},
+    {name:'Антон',role:'Пиротехник',perm:'worker',c:'#5fc77f',bg:'rgba(95,199,127,.18)',phone:'+79000000004',email:'anton@pyrolog.local'},
+  ],
+  stock:[
+    {name:'Шашка заслон',unit:'шт',qty:63,min:20,type:'pyro',price:800,cost:400,returnable:false},
+    {name:'Шар Искра',unit:'шт',qty:18,min:30,type:'pyro',price:350,cost:150,returnable:false},
+    {name:'Имитация взрыва (граната)',unit:'шт',qty:12,min:5,type:'pyro',price:1500,cost:700,returnable:false},
+    {name:'Патроны',unit:'шт',qty:210,min:100,type:'ammo',price:60,cost:25,returnable:false},
+    {name:'Пистолет ПМ',unit:'шт',qty:6,min:0,type:'ammo',price:0,cost:0,returnable:true},
+    {name:'Юниверсал',unit:'шт',qty:2,min:1,type:'equip',price:5000,cost:0,returnable:true},
+    {name:'ДМХ',unit:'шт',qty:1,min:1,type:'equip',price:3000,cost:0,returnable:true},
+    {name:'Дист. управление',unit:'шт',qty:4,min:2,type:'equip',price:2000,cost:0,returnable:true},
+    {name:'Дым-машина 2.6',unit:'шт',qty:2,min:1,type:'equip',price:4000,cost:0,returnable:true},
+    {name:'Маркер',unit:'шт',qty:5,min:2,type:'equip',price:500,cost:0,returnable:true},
+    {name:'Масло',unit:'л',qty:8,min:3,type:'cons',price:600,cost:300,returnable:false},
+  ],
+  rates:{km:30,fuel:12,wage:3000},
+  workRates:[{name:'Работа пиротехника (смена)',amount:6000},{name:'Постановщик трюков (смена)',amount:12000}],
+  trips:[
+    {id:1,project:'Мажор',date:'2025-12-22',crew:['Дима','Даня','Игорь'],driver:'Игорь',km:142,author:'Дима',
+     work:[{name:'Работа пиротехника (смена)',amount:6000,qty:3}],
+     notes:'Масло: приписан 1 л. Пистолеты: достали 2 шт стреляющих.',type:'Съёмка',
+     items:[
+       {name:'Юниверсал',qty:1,unit:'шт',returnable:true,returned:false},
+       {name:'ДМХ',qty:1,unit:'шт',returnable:true,returned:false},
+       {name:'Дист. управление',qty:1,unit:'шт',returnable:true,returned:false},
+       {name:'Дым-машина 2.6',qty:1,unit:'шт',returnable:true,returned:false},
+       {name:'Маркер',qty:1,unit:'шт',returnable:true,returned:false},
+       {name:'Пистолет ПМ',qty:6,unit:'шт',returnable:true,returned:false},
+       {name:'Шашка заслон',qty:9,unit:'шт',returnable:false},
+       {name:'Шар Искра',qty:30,unit:'шт',returnable:false},
+       {name:'Имитация взрыва (граната)',qty:1,unit:'шт',returnable:false},
+       {name:'Патроны',qty:50,unit:'шт',returnable:false},
+       {name:'Масло',qty:3,unit:'л',returnable:false}
+     ]}
+  ],
+};
+const SUPABASE_URL='https://fdkwwnliblwjtymsvtpj.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZka3d3bmxpYmx3anR5bXN2dHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjkyOTEsImV4cCI6MjA5NTgwNTI5MX0.J1xUZoWrHKrV9_QFLE6s8t3SDULroFy7MNGuKf_0Ois';
+const ADMIN_EMAIL='admin@pyrolog.local';
+const {createClient}=supabase;
+const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+let db={employees:[],stock:[],trips:[],rates:{km:30,fuel:12,wage:3000},workRates:[]};
+let curScreen='s-login';
+let _realtimeSub=null;
+
+async function loadDB(){
+  const {data,error}=await sb.from('app_state').select('data').eq('id',1).single();
+  if(error)throw error;
+  db=data.data;
+  if(!db.rates)db.rates={km:30,fuel:12,wage:3000};
+  if(db.rates.fuel===undefined)db.rates.fuel=12;
+  if(db.rates.wage===undefined)db.rates.wage=3000;
+  if(!db.workRates)db.workRates=[{name:'Работа пиротехника (смена)',amount:6000}];
+}
+let _st=null;
+function saveDB(d){
+  clearTimeout(_st);
+  _st=setTimeout(async()=>{
+    try{await sb.from('app_state').update({data:db,updated_at:new Date().toISOString()}).eq('id',1);}
+    catch(e){console.warn('save error',e);}
+  },200);
+}
+
+let draft={};
+const TYPES=[{k:'Съёмка',cls:'chip-em'},{k:'Ивент',cls:'chip-gold'},{k:'Реконструкция',cls:'chip-blue'}];
+const TYPE_LBL={pyro:'Пиротехника',ammo:'Оружие и боеприпасы',equip:'Оборудование',cons:'Расходники'};
+const TAG={pyro:'tag-pyro',ammo:'tag-ammo',equip:'tag-equip',cons:'tag-cons'};
+const PERM_LBL={admin:'Администратор',manager:'Руководитель',worker:'Работник'};
+const PERM_CLS={admin:'role-admin',manager:'role-manager',worker:'role-worker'};
+const NAV=[
+  {id:'s-home',lbl:'Главная',icon:'<path d="M3 12l9-9 9 9M5 10v10h14V10"/>'},
+  {id:'s-stock',lbl:'Склад',icon:'<path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/>'},
+  {id:'s-team',lbl:'Команда',icon:'<circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 3.1a4 4 0 0 1 0 7.8M21 21v-2a4 4 0 0 0-3-3.8"/>'},
+];
+const NAV_PRICE={id:'s-price',lbl:'Прайс',icon:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h4"/>'};
+const NAV_STAT={id:'s-stat',lbl:'Стата',icon:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'};
+function navItems(){const a=[NAV[0],NAV[1],NAV[2]];if(canManage())a.push(NAV_PRICE,NAV_STAT);return a}
+
+/* ============ AUTH (Login / Password) ============ */
+let me=null;
+function canManage(){return me&&(me.perm==='manager'||me.perm==='admin')}
+function isAdmin(){return me&&me.perm==='admin'}
+function showOnly(id){document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
+function setErr(id,msg){const el=document.getElementById(id);if(el)el.textContent=msg}
+
+async function doLogin(){
+  const email=(document.getElementById('login-email').value||'').trim();
+  const pass=document.getElementById('login-pass').value;
+  if(!email||!pass){setErr('login-error','Заполни оба поля');return}
+  const btn=document.getElementById('login-btn');btn.disabled=true;btn.textContent='Входим...';setErr('login-error','');
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){
+    const m={'Invalid login credentials':'Неверный логин или пароль','Email not confirmed':'Подтверди email — письмо в почте'};
+    setErr('login-error',m[error.message]||('Ошибка: '+error.message));
+    btn.disabled=false;btn.textContent='Войти';return;
+  }
+  await loadDB();
+  const emp=db.employees.find(e=>e.email===data.user.email);
+  if(emp){me=emp;}
+  else if(data.user.email===ADMIN_EMAIL){me={name:'Администратор',role:'Разработчик',perm:'admin',c:'#ff7d4d',bg:'rgba(255,87,34,.18)',email:ADMIN_EMAIL};}
+  else{setErr('login-error','Email не найден в списке сотрудников');await sb.auth.signOut();btn.disabled=false;btn.textContent='Войти';return;}
+  startRealtime();renderNav();renderUserBtn();go('s-home');
+}
+
+async function logout(){
+  if(_realtimeSub){try{sb.removeChannel(_realtimeSub);}catch(e){}  _realtimeSub=null;}
+  await sb.auth.signOut();me=null;showOnly('s-login');
+  document.getElementById('login-email').value='';
+  document.getElementById('login-pass').value='';
+  setErr('login-error','');
+}
+
+function openProfile(){if(confirm('Выйти из аккаунта «'+me.name+'»?'))logout();}
+
+function renderUserBtn(){
+  document.getElementById('user-btn').innerHTML=
+    '<div class="avatar" style="background:'+me.bg+';color:'+me.c+'">'+ini(me.name)+'</div>'+
+    '<div><div class="userbtn-name">'+esc(me.name.split(' ')[0])+'</div>'+
+    '<div class="userbtn-role">'+PERM_LBL[me.perm]+'</div></div>';
+}
+
+function startRealtime(){
+  if(_realtimeSub){try{sb.removeChannel(_realtimeSub);}catch(e){}_realtimeSub=null;}
+  _realtimeSub=sb.channel('app_state_changes')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'app_state'},payload=>{
+      if(!payload.new||!payload.new.data)return;
+      const fresh=payload.new.data;
+      if(JSON.stringify(fresh)===JSON.stringify(db))return;
+      db=fresh;
+      if(!db.rates)db.rates={km:30,fuel:12,wage:3000};
+      if(!db.workRates)db.workRates=[];
+      if(['s-home','s-stock','s-team','s-stat'].includes(curScreen))go(curScreen);
+    }).subscribe();
+}
+
+
+function renderNav(){
+  const items=navItems();
+  ['nav-home','nav-stock','nav-team','nav-price','nav-stat'].forEach(nid=>{
+    const cont=document.getElementById(nid);if(!cont)return;
+    const cur=nid.replace('nav-','s-');
+    cont.innerHTML=items.map(n=>`<div class="nav-item ${n.id===cur?'active':''}" onclick="go('${n.id}')"><svg viewBox="0 0 24 24">${n.icon}</svg>${n.lbl}</div>`).join('');
+  });
+}
+function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary()}
+
+/* ============ HOME ============ */
+function visibleTrips(){if(canManage())return db.trips;return db.trips.filter(t=>t.author===me.name)}
+function renderHome(){
+  const vis=visibleTrips();
+  document.getElementById('m-trips').textContent=vis.length;
+  document.getElementById('m-emp').textContent=db.employees.length;
+  document.getElementById('m-stock').textContent=db.stock.length;
+  document.getElementById('m-alerts').textContent=db.stock.filter(s=>s.min>0&&s.qty<s.min).length;
+  const list=document.getElementById('trips-list');
+  if(!vis.length){list.innerHTML='<div class="empty">'+(canManage()?'Выездов пока нет':'У тебя пока нет отчётов.<br>Создай первый выезд.')+'</div>';return}
+  list.innerHTML=vis.slice().reverse().map(t=>`<div class="card" style="margin-bottom:9px" onclick="openTrip(${t.id})"><div class="card-top"><div><div class="card-name">${esc(t.project)}</div><div class="card-sub">${fmtDate(t.date)} · ${t.crew.join(', ')}</div>${canManage()&&t.author?`<div class="card-sub" style="margin-top:3px;color:var(--blue)">Ответственный: ${esc(t.author)}</div>`:''}</div>${hasUnreturned(t)?'<span class="chip chip-gold" style="padding:4px 10px">в поле</span>':'<span class="chip chip-green" style="padding:4px 10px">Готов</span>'}</div></div>`).join('');
+}
+function openTrip(id){
+  const t=db.trips.find(x=>x.id===id);if(!t)return;
+  document.getElementById('trip-title').textContent=t.project+' · '+fmtDate(t.date);
+  const hasNotes=t.notes&&t.notes.trim();
+  const flagged=hasNotes&&/приписал|достал|сломал|потерял|не верн/i.test(t.notes);
+  document.getElementById('trip-detail').innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="chip chip-em" style="padding:5px 12px">${esc(t.type||'Съёмка')}</span><span style="font-size:12px;color:var(--txt2)">${t.crew.length} чел · ${t.km} км</span></div>
+    ${canManage()&&t.author?`<div class="note-box note-blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/></svg><span>Ответственный за отчёт: <b>${esc(t.author)}</b></span></div>`:''}
+    <div><div class="lbl">Бригада</div><div class="crew-grid" style="margin-top:2px">${t.crew.map(c=>{const e=db.employees.find(x=>x.name===c)||{c:'#888',bg:'#333'};return `<div style="display:flex;align-items:center;gap:7px"><div class="avatar" style="background:${e.bg};color:${e.c}">${ini(c)}</div><span style="font-size:14px">${c}${c===t.driver?' ★':''}</span></div>`}).join('')}</div></div>
+    <div class="sep"></div>
+    <div><div class="lbl">Оборудование</div>${t.items.map((i,idx)=>{const s=db.stock.find(x=>x.name===i.name);const tp=s?s.type:'cons';let st='';if(i.returnable){st=i.returned?`<span class="chip chip-green" style="padding:3px 9px;font-size:10px">возвращено</span>`:`<span class="chip chip-gold" style="padding:3px 9px;font-size:10px">в поле</span>${canReturn(t)?`<button class="eq-btn" style="width:auto;padding:0 10px;font-size:11px;text-transform:uppercase" onclick="returnItem(${t.id},${idx})">вернуть</button>`:''}`}return `<div class="eq-row"><span class="eq-name">${esc(i.name)}<span class="tag ${TAG[tp]}">${TYPE_LBL[tp].split(' ')[0]}</span></span><span style="display:flex;align-items:center;gap:8px"><span class="mono" style="font-weight:700;white-space:nowrap">${i.qty} ${i.unit||'шт'}</span>${st}</span></div>`}).join('')}${hasUnreturned(t)&&canReturn(t)?`<button class="btn btn-ghost" onclick="returnAll(${t.id})">↩ Вернуть всё оборудование на склад</button>`:''}</div>
+    ${hasNotes?`<div class="note-box ${flagged?'note-red':'note-gold'}"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><span>${esc(t.notes)}</span></div>`:''}
+    <div class="sep"></div>
+    <div class="metric-grid"><div class="metric"><div class="metric-lbl">Водитель</div><div style="font-size:16px;font-weight:600;margin-top:3px">${esc(t.driver||'—')}</div></div><div class="metric"><div class="metric-lbl">Километраж</div><div class="metric-val" style="font-size:24px">${t.km}<span style="font-size:13px;color:var(--txt3)"> км</span></div></div></div>
+    ${canManage()?`<div class="card" onclick="openInvoice(${t.id})" style="border-color:rgba(232,161,60,.4)"><div style="display:flex;justify-content:space-between;align-items:center"><div><div class="lbl" style="margin-bottom:2px">Счёт для заказчика</div><div style="font-size:12px;color:var(--txt2)">открыть и выгрузить в Excel</div></div><div class="mono" style="font-size:21px;font-weight:700;color:var(--gold)">${fmtMoney(calcInvoice(t).total)} ₽</div></div></div>`:''}
+    ${canManage()?`<button class="btn btn-ghost" onclick="delTrip(${t.id})">Удалить выезд</button>`:''}`;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));document.getElementById('s-trip').classList.remove('hidden');
+}
+function delTrip(id){if(!confirm('Удалить выезд? Списанное со склада не вернётся автоматически.'))return;db.trips=db.trips.filter(t=>t.id!==id);saveDB(db);go('s-home')}
+
+/* ============ NEW TRIP ============ */
+function startNew(){
+  const mine=(me&&me.perm!=='admin')?[me.name]:[];
+  draft={project:'',date:new Date().toISOString().split('T')[0],type:'Съёмка',crew:mine,driver:'',km:0,items:{},notes:''};
+  document.getElementById('type-chips').innerHTML=TYPES.map(t=>`<span class="chip ${draft.type===t.k?t.cls:'chip-off'}" data-type="${t.k}" data-cls="${t.cls}" onclick="pickType(this)">${t.k}</span>`).join('');
+  document.getElementById('n-project').value='';document.getElementById('n-date').value=draft.date;go('s-new1');
+}
+function pickType(el){draft.type=el.dataset.type;document.querySelectorAll('#type-chips .chip').forEach(c=>c.className='chip chip-off');el.className='chip '+el.dataset.cls}
+function step1(){const p=document.getElementById('n-project').value.trim();if(!p){shake('n-project');return}draft.project=p;draft.date=document.getElementById('n-date').value;
+  document.getElementById('crew-search').value='';
+  renderCrewChips();
+  document.getElementById('n-driver').innerHTML='<option value="">— выбрать —</option>'+db.employees.map(e=>`<option ${draft.driver===e.name?'selected':''}>${e.name}</option>`).join('');
+  document.getElementById('n-km').value=draft.km||'';go('s-new2');
+}
+function renderCrewChips(){
+  const q=(document.getElementById('crew-search').value||'').toLowerCase().trim();
+  const filtered=db.employees.filter(e=>e.name.toLowerCase().includes(q)||e.role.toLowerCase().includes(q));
+  const box=document.getElementById('crew-chips');
+  box.innerHTML=filtered.length?filtered.map(e=>`<span class="chip ${draft.crew.includes(e.name)?'chip-em':'chip-off'}" data-name="${e.name}" onclick="toggleCrew(this)">${e.name}</span>`).join(''):'<div class="empty" style="padding:14px 0">Никого не найдено</div>';
+  const c=document.getElementById('crew-count');
+  c.textContent=draft.crew.length?`(${draft.crew.length})`:'';
+}
+function toggleCrew(el){const n=el.dataset.name;if(draft.crew.includes(n)){draft.crew=draft.crew.filter(x=>x!==n);el.className='chip chip-off'}else{draft.crew.push(n);el.className='chip chip-em'}document.getElementById('crew-count').textContent=draft.crew.length?`(${draft.crew.length})`:''}
+function step2(){if(!draft.crew.length){alert('Выбери хотя бы одного сотрудника');return}draft.driver=document.getElementById('n-driver').value;draft.km=parseInt(document.getElementById('n-km').value)||0;
+  document.getElementById('equip-search').value='';renderEquipAvail();renderChosen();go('s-new3');
+}
+function renderEquipAvail(){
+  const q=(document.getElementById('equip-search').value||'').toLowerCase().trim();
+  const avail=db.stock.filter(s=>availQty(s)>0&&!(s.name in draft.items)&&(s.name.toLowerCase().includes(q)||TYPE_LBL[s.type].toLowerCase().includes(q)));
+  const box=document.getElementById('equip-avail');
+  box.innerHTML=avail.length?avail.map(s=>`<div class="added-row pick-row" onclick="addEquip('${s.name.replace(/'/g,"\\'")}')">
+      <div style="flex:1"><div class="eq-name">${esc(s.name)}<span class="tag ${TAG[s.type]}">${TYPE_LBL[s.type].split(' ')[0]}</span>${s.returnable?'<span class="tag tag-equip">возврат</span>':''}</div>
+        <div class="eq-meta">доступно: ${availQty(s)} ${s.unit}</div></div>
+      <div class="eq-btn" style="pointer-events:none">+</div></div>`).join('')
+    :'<div class="empty" style="padding:14px 0">Ничего не найдено</div>';
+}
+function addEquip(name){if(!name)return;draft.items[name]=1;document.getElementById('equip-search').value='';renderEquipAvail();renderChosen()}
+function renderChosen(){
+  const box=document.getElementById('equip-chosen');
+  const entries=Object.entries(draft.items);
+  document.getElementById('chosen-count').textContent=entries.length?`(${entries.length})`:'';
+  if(!entries.length){box.innerHTML='<div class="empty">Пока ничего не выбрано.<br>Найди и добавь позиции выше.</div>';return}
+  box.innerHTML=entries.map(([name,q])=>{
+    const s=db.stock.find(x=>x.name===name)||{unit:'шт',type:'cons',qty:9999};
+    const nm=name.replace(/'/g,"\\'");
+    return `<div class="added-row">
+      <div style="flex:1"><div class="eq-name">${esc(name)}<span class="tag ${TAG[s.type]}">${TYPE_LBL[s.type].split(' ')[0]}</span></div>
+        <div class="eq-meta">доступно: ${availQty(s)} ${s.unit}</div></div>
+      <div class="eq-controls">
+        <button class="eq-btn" onclick="chQty('${nm}',-1)">−</button>
+        <input class="qty-input" type="number" min="1" value="${q}" onchange="setQty('${nm}',this.value)" onfocus="this.select()"/>
+        <button class="eq-btn" onclick="chQty('${nm}',1)">+</button>
+        <button class="eq-btn del" onclick="rmEquip('${nm}')">×</button>
+      </div></div>`;
+  }).join('');
+}
+function setQty(name,val){const s=db.stock.find(x=>x.name===name);const max=s?availQty(s):999999;let v=parseInt(val)||1;v=Math.max(1,Math.min(max,v));draft.items[name]=v;renderChosen()}
+function chQty(name,d){const s=db.stock.find(x=>x.name===name);const max=s?availQty(s):9999;const v=Math.max(1,Math.min(max,(draft.items[name]||1)+d));draft.items[name]=v;renderChosen()}
+function rmEquip(name){delete draft.items[name];renderEquipAvail();renderChosen()}
+function renderSummary(){const items=Object.entries(draft.items);document.getElementById('summary-card').innerHTML=`<div class="summary-line"><b>${esc(draft.project)}</b> · ${fmtDate(draft.date)} · ${draft.type}</div><div class="summary-line">${draft.crew.join(', ')}${draft.driver?' (вод. '+draft.driver+')':''} · ${draft.km} км</div><div class="summary-line">${items.length?items.map(([n,q])=>esc(n)+' ×'+q).join(', '):'<span style="color:var(--txt3)">оборудование не выбрано</span>'}</div>`}
+function submitTrip(){draft.notes=document.getElementById('n-notes').value;Object.entries(draft.items).forEach(([name,q])=>{const s=db.stock.find(x=>x.name===name);if(s&&!s.returnable)s.qty=Math.max(0,s.qty-q)});const nextId=db.trips.length?Math.max(...db.trips.map(t=>t.id))+1:1;db.trips.push({id:nextId,project:draft.project,date:draft.date,type:draft.type,crew:[...draft.crew],driver:draft.driver,km:draft.km,notes:draft.notes,author:me?me.name:'',items:Object.entries(draft.items).map(([name,q])=>{const s=db.stock.find(x=>x.name===name);return{name,qty:q,unit:s?s.unit:'шт',returnable:!!(s&&s.returnable),returned:false}})});saveDB(db);go('s-success')}
+
+/* ============ STOCK ============ */
+function renderStock(){
+  document.getElementById('stock-role').textContent=canManage()?'режим управления':'просмотр';
+  const groups={};db.stock.forEach((s,i)=>{s._i=i;(groups[s.type]=groups[s.type]||[]).push(s)});
+  let html='';
+  if(canManage()){
+    html+=`<button class="btn btn-primary" style="margin-bottom:6px" onclick="go('s-addstock')">+ Добавить позицию</button>`;
+  }
+  for(const type of['ammo','pyro','equip','cons']){
+    if(!groups[type])continue;
+    html+=`<div class="section-lbl">${TYPE_LBL[type]}</div>`;
+    groups[type].forEach(s=>{
+      const out=outQty(s.name);const avail=availQty(s);
+      const danger=s.min>0&&avail<s.min;const warn=s.min>0&&avail<s.min*1.5&&!danger;
+      const color=danger?'var(--red)':warn?'var(--gold)':'var(--green)';
+      const status=s.min===0?'учёт':danger?'мало!':warn?'средне':'норма';
+      const pct=Math.min(100,Math.round(avail/Math.max(s.min*2,avail,1)*100));
+      html+=`<div class="card flat" style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div style="flex:1"><div style="font-size:15px">${esc(s.name)}${s.returnable?'<span class="tag tag-equip">многоразовое</span>':''}${s.type==='ammo'?'<span class="tag tag-ammo">учёт</span>':''}</div>
+            <div class="stock-wrap"><div class="stock-bar" style="width:${pct}%;background:${color}"></div></div>
+            <div class="eq-meta" style="margin-top:5px">мин: ${s.min} ${s.unit}${out>0?` · <span style="color:var(--gold)">в поле: ${out}</span>`:''}${canManage()&&s.price?` · цена: ${fmtMoney(s.price)} ₽`:''}</div></div>
+          <div style="text-align:right">
+            <div class="mono" style="font-size:16px;font-weight:700">${avail}${s.returnable?`<span style="color:var(--txt3)">/${s.qty}</span>`:''} ${s.unit}</div>
+            <div style="font-size:11px;color:${color};text-transform:uppercase;letter-spacing:.5px">${status}</div></div>
+        </div>
+        ${canManage()?`<div class="eq-controls" style="margin-top:10px;justify-content:flex-end">
+          <button class="eq-btn" onclick="stockQty(${s._i},-1)">−</button>
+          <button class="eq-btn" onclick="stockQty(${s._i},-10)" style="font-size:11px">−10</button>
+          <button class="eq-btn" onclick="stockQty(${s._i},10)" style="font-size:11px">+10</button>
+          <button class="eq-btn" onclick="stockQty(${s._i},1)">+</button>
+          <button class="eq-btn del" onclick="delStock(${s._i})">🗑</button>
+        </div>`:''}
+      </div>`;
+    });
+  }
+  document.getElementById('stock-list').innerHTML=html;
+}
+function stockQty(i,d){db.stock[i].qty=Math.max(0,db.stock[i].qty+d);saveDB(db);renderStock()}
+function delStock(i){if(!confirm('Удалить «'+db.stock[i].name+'» со склада?'))return;db.stock.splice(i,1);saveDB(db);renderStock()}
+function saveStock(){
+  const name=document.getElementById('as-name').value.trim();
+  if(!name){shake('as-name');return}
+  db.stock.push({name,type:document.getElementById('as-type').value,qty:parseInt(document.getElementById('as-qty').value)||0,unit:document.getElementById('as-unit').value.trim()||'шт',min:parseInt(document.getElementById('as-min').value)||0,price:parseInt(document.getElementById('as-price').value)||0,returnable:document.getElementById('as-ret').value==='1'});
+  saveDB(db);
+  ['as-name','as-qty','as-min','as-price'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('as-unit').value='шт';
+  go('s-stock');
+}
+
+/* ============ TEAM ============ */
+function renderTeam(){
+  document.getElementById('team-role').textContent=canManage()?'режим управления':'просмотр';
+  let html='';
+  if(canManage()) html+=`<button class="btn btn-primary" style="margin-bottom:6px" onclick="go('s-addemp')">+ Добавить сотрудника</button>`;
+  html+=db.employees.map((e,i)=>{
+    const mine=db.trips.filter(t=>t.crew.includes(e.name));
+    const km=mine.reduce((s,t)=>s+(t.driver===e.name?t.km:0),0);
+    return `<div class="card flat" style="margin-bottom:9px">
+      <div style="display:flex;align-items:center;gap:11px">
+        <div class="avatar" style="width:40px;height:40px;font-size:15px;background:${e.bg};color:${e.c}">${ini(e.name)}</div>
+        <div style="flex:1"><div style="font-size:16px;font-weight:500">${esc(e.name)}</div>
+          <div style="font-size:12px;color:var(--txt2)">${esc(e.role)}${canManage()&&e.email?` · <span style='color:var(--txt3)'>${esc(e.email)}</span>`:''}</div></div>
+        <span class="login-role ${PERM_CLS[e.perm]}">${PERM_LBL[e.perm]}</span>
+      </div>
+      <div class="sep" style="margin:10px 0"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--txt2)">
+        <span>Выездов: <b style="color:var(--txt)" class="mono">${mine.length}</b> · Пробег: <b style="color:var(--txt)" class="mono">${km} км</b></span>
+        ${isAdmin()?`<button class="eq-btn del" onclick="delEmp(${i})" style="width:26px;height:26px;font-size:12px">🗑</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('team-list').innerHTML=html;
+}
+function delEmp(i){if(!confirm('Удалить сотрудника «'+db.employees[i].name+'»?'))return;db.employees.splice(i,1);saveDB(db);renderTeam()}
+function saveEmp(){
+  const name=document.getElementById('ae-name').value.trim();
+  if(!name){shake('ae-name');return}
+  const palette=[['#ff7d4d','rgba(255,87,34,.18)'],['#4da3ff','rgba(77,163,255,.18)'],['#e8a13c','rgba(232,161,60,.18)'],['#5fc77f','rgba(95,199,127,.18)'],['#c98bff','rgba(170,100,255,.18)']];
+  const p=palette[db.employees.length%palette.length];
+  db.employees.push({name,role:document.getElementById('ae-role').value.trim()||'Пиротехник',perm:document.getElementById('ae-perm').value,phone:(document.getElementById('ae-phone').value||'').trim(),c:p[0],bg:p[1]});
+  saveDB(db);
+  document.getElementById('ae-name').value='';document.getElementById('ae-phone').value='';document.getElementById('ae-role').value='Пиротехник';
+  go('s-team');
+}
+
+/* ============ FINANCE ============ */
+function fmtMoney(n){return Math.round(n||0).toLocaleString('ru-RU')}
+function calcInvoice(t){
+  let equip=0;t.items.forEach(i=>{const s=db.stock.find(x=>x.name===i.name);equip+=(s&&s.price?s.price:0)*i.qty});
+  const km=(db.rates.km||0)*(t.km||0);
+  const work=(t.work||[]).reduce((a,w)=>a+(+w.amount||0)*(+w.qty||1),0);
+  const services=(t.services||[]).reduce((a,s)=>a+(+s.amount||0),0);
+  return {equip,km,work,services,total:equip+km+work+services};
+}
+function calcExpense(t){
+  let cons=0;t.items.forEach(i=>{const s=db.stock.find(x=>x.name===i.name);if(s&&!s.returnable)cons+=(s.cost||0)*i.qty});
+  const fuel=(db.rates.fuel||0)*(t.km||0);
+  const wage=(db.rates.wage||0)*t.crew.length;
+  return {cons,fuel,wage,total:cons+fuel+wage};
+}
+function calcProfit(t){return calcInvoice(t).total-calcExpense(t).total}
+
+function renderPrice(){
+  let html=`<div class="section-lbl">Ставки за работу (заказчику)</div>`;
+  (db.workRates||[]).forEach((w,i)=>{html+=`<div class="card flat" style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+    <input class="fval" style="flex:1;font-size:14px;padding:7px 10px" value="${esc(w.name)}" onchange="setWorkRate(${i},'name',this.value)"/>
+    <div style="display:flex;align-items:center;gap:6px"><input class="qty-input" style="width:90px" type="number" min="0" value="${w.amount||0}" onchange="setWorkRate(${i},'amount',this.value)"/><span style="color:var(--txt2)">₽</span>
+    <button class="eq-btn del" onclick="delWorkRate(${i})">×</button></div></div></div>`});
+  html+=`<button class="btn btn-ghost" onclick="addWorkRate()">+ Добавить ставку за работу</button>`;
+
+  html+=`<div class="section-lbl" style="margin-top:14px">Транспорт</div>
+    <div class="card flat"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="eq-name">Заказчику</div><div class="eq-meta">за километр</div></div>
+      <div style="display:flex;align-items:center;gap:6px"><input class="qty-input" style="width:96px" type="number" min="0" value="${db.rates.km||0}" onchange="setRate('km',this.value)"/><span style="color:var(--txt2)">₽</span></div></div></div>`;
+
+  html+=`<div class="section-lbl" style="margin-top:14px">Себестоимость (наши расходы)</div>
+    <div class="card flat"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="eq-name">Зарплата</div><div class="eq-meta">за человека / выезд</div></div>
+      <div style="display:flex;align-items:center;gap:6px"><input class="qty-input" style="width:96px" type="number" min="0" value="${db.rates.wage||0}" onchange="setRate('wage',this.value)"/><span style="color:var(--txt2)">₽</span></div></div></div>
+    <div class="card flat" style="margin-top:8px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="eq-name">Топливо</div><div class="eq-meta">наш расход за км</div></div>
+      <div style="display:flex;align-items:center;gap:6px"><input class="qty-input" style="width:96px" type="number" min="0" value="${db.rates.fuel||0}" onchange="setRate('fuel',this.value)"/><span style="color:var(--txt2)">₽</span></div></div></div>`;
+
+  html+=`<div class="section-lbl" style="margin-top:14px">Оборудование — цена / закупка</div>`;
+  db.stock.forEach((s,i)=>{html+=`<div class="card flat" style="margin-bottom:8px">
+    <div class="eq-name" style="margin-bottom:8px">${esc(s.name)}<span class="tag ${TAG[s.type]}">${TYPE_LBL[s.type].split(' ')[0]}</span></div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><div class="eq-meta" style="margin-bottom:4px">заказчику, ₽</div><input class="qty-input" style="width:100%" type="number" min="0" value="${s.price||0}" onchange="setStockField(${i},'price',this.value)"/></div>
+      <div style="flex:1"><div class="eq-meta" style="margin-bottom:4px">закупка, ₽</div><input class="qty-input" style="width:100%" type="number" min="0" value="${s.cost||0}" onchange="setStockField(${i},'cost',this.value)"/></div>
+    </div></div>`});
+  html+=`<button class="btn btn-primary" style="margin-top:6px" onclick="exportAllXlsx()">⬇ Все выезды в Excel</button>`;
+  document.getElementById('price-body').innerHTML=html;
+}
+function setRate(k,v){db.rates[k]=Math.max(0,parseInt(v)||0);saveDB(db)}
+function setStockField(i,f,v){db.stock[i][f]=Math.max(0,parseInt(v)||0);saveDB(db)}
+function addWorkRate(){const name=prompt('Название ставки (например: Работа ассистента смена):');if(!name)return;const amt=parseInt(prompt('Сумма заказчику, ₽:'))||0;if(!db.workRates)db.workRates=[];db.workRates.push({name:name.trim(),amount:amt});saveDB(db);renderPrice()}
+function setWorkRate(i,f,v){db.workRates[i][f]=(f==='amount')?Math.max(0,parseInt(v)||0):v;saveDB(db)}
+function delWorkRate(i){if(!confirm('Удалить ставку «'+db.workRates[i].name+'»?'))return;db.workRates.splice(i,1);saveDB(db);renderPrice()}
+
+function openInvoice(id){curScreen='s-invoice';renderInvoice(id);document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));document.getElementById('s-invoice').classList.remove('hidden')}
+function invRow(name,meta,sum){return `<div class="eq-row"><div style="flex:1"><div class="eq-name" style="font-size:14px">${name}</div><div class="eq-meta">${meta}</div></div><div class="mono" style="font-weight:700;white-space:nowrap">${sum} ₽</div></div>`}
+function renderInvoice(id){
+  const t=db.trips.find(x=>x.id===id);if(!t)return;const inv=calcInvoice(t);const exp=calcExpense(t);const profit=inv.total-exp.total;
+  let rows='';
+  t.items.forEach(i=>{const s=db.stock.find(x=>x.name===i.name);const p=s&&s.price?s.price:0;rows+=invRow(esc(i.name),i.qty+' '+(i.unit||'шт')+' × '+fmtMoney(p),fmtMoney(p*i.qty))});
+  (t.work||[]).forEach((w,wi)=>{rows+=invRow(esc(w.name)+` <span class="eq-btn del" style="display:inline-flex;width:20px;height:20px;font-size:11px;vertical-align:middle" onclick="rmWork(${id},${wi})">×</span>`,(w.qty||1)+' × '+fmtMoney(w.amount),fmtMoney((w.amount||0)*(w.qty||1)))});
+  rows+=invRow('Транспорт',t.km+' км × '+fmtMoney(db.rates.km||0),fmtMoney(inv.km));
+  (t.services||[]).forEach((s,si)=>{rows+=invRow(esc(s.name)+` <span class="eq-btn del" style="display:inline-flex;width:20px;height:20px;font-size:11px;vertical-align:middle" onclick="rmService(${id},${si})">×</span>`,'доп. услуга',fmtMoney(s.amount))});
+  const wr=(db.workRates||[]).map((w,i)=>`<option value="${i}">${esc(w.name)} — ${fmtMoney(w.amount)} ₽</option>`).join('');
+  document.getElementById('invoice-body').innerHTML=`
+    <div class="card flat"><div class="card-name">${esc(t.project)}</div><div class="card-sub">${fmtDate(t.date)} · ${t.type} · отв. ${esc(t.author||'—')}</div></div>
+    <div class="section-lbl">Позиции счёта</div>
+    <div class="card flat" style="padding:2px 15px">${rows}</div>
+    <div class="card flat" style="border-color:rgba(232,161,60,.4)"><div style="display:flex;justify-content:space-between;align-items:center"><div class="lbl" style="margin:0">Итого к оплате</div><div class="mono" style="font-size:24px;font-weight:700;color:var(--gold)">${fmtMoney(inv.total)} ₽</div></div></div>
+    <div class="card flat"><div style="display:flex;justify-content:space-between;font-size:13px;color:var(--txt2)"><span>Себестоимость</span><span class="mono">${fmtMoney(exp.total)} ₽</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;margin-top:6px"><span style="color:var(--txt2)">Прибыль</span><span class="mono" style="font-weight:700;color:${profit>=0?'var(--green)':'var(--red)'}">${fmtMoney(profit)} ₽</span></div></div>
+    <div><div class="lbl">Добавить работу из ставок</div><select class="fval" onchange="addWork(${id},this.value)"><option value="">+ выбрать ставку...</option>${wr}</select></div>
+    <button class="btn btn-ghost" onclick="addService(${id})">+ Добавить услугу вручную</button>
+    <button class="btn btn-primary" onclick="exportInvoiceXlsx(${id})">⬇ Выгрузить счёт в Excel</button>`;
+}
+function addWork(id,wi){if(wi==='')return;const t=db.trips.find(x=>x.id===id);const r=db.workRates[wi];if(!t.work)t.work=[];t.work.push({name:r.name,amount:r.amount,qty:t.crew.length||1});saveDB(db);renderInvoice(id)}
+function rmWork(id,wi){const t=db.trips.find(x=>x.id===id);t.work.splice(wi,1);saveDB(db);renderInvoice(id)}
+function addService(id){const t=db.trips.find(x=>x.id===id);const name=prompt('Услуга (например: Согласование с МЧС):');if(!name)return;const amt=parseInt(prompt('Сумма, ₽:'))||0;if(!t.services)t.services=[];t.services.push({name:name.trim(),amount:amt});saveDB(db);renderInvoice(id)}
+function rmService(id,si){const t=db.trips.find(x=>x.id===id);t.services.splice(si,1);saveDB(db);renderInvoice(id)}
+
+/* ============ STATISTICS ============ */
+let statPeriod=365;
+const PERIODS=[{d:7,l:'Неделя'},{d:30,l:'Месяц'},{d:90,l:'Квартал'},{d:365,l:'Год'},{d:0,l:'Всё время'}];
+function tripsInPeriod(days){if(!days)return db.trips.slice();const now=Date.now();const from=now-days*86400000;return db.trips.filter(t=>{const d=new Date(t.date).getTime();return !isNaN(d)&&d>=from})}
+function setPeriod(d){statPeriod=d;renderStat()}
+function renderStat(){
+  const list=tripsInPeriod(statPeriod);
+  let rev=0,exp=0,km=0,eqR=0,wkR=0,kmR=0,svR=0;
+  list.forEach(t=>{const inv=calcInvoice(t);const e=calcExpense(t);rev+=inv.total;exp+=e.total;km+=t.km||0;eqR+=inv.equip;wkR+=inv.work;kmR+=inv.km;svR+=inv.services});
+  const profit=rev-exp;const margin=rev?Math.round(profit/rev*100):0;
+  const chips=PERIODS.map(p=>`<span class="chip ${statPeriod===p.d?'chip-em':'chip-off'}" onclick="setPeriod(${p.d})">${p.l}</span>`).join('');
+  const bar=(label,val,total,color)=>{const pct=total?Math.round(val/total*100):0;return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span style="color:var(--txt2)">${label}</span><span class="mono">${fmtMoney(val)} ₽</span></div><div class="stock-wrap"><div class="stock-bar" style="width:${pct}%;background:${color}"></div></div></div>`};
+  document.getElementById('stat-body').innerHTML=`
+    <div class="crew-grid">${chips}</div>
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-lbl">Доход</div><div class="metric-val" style="font-size:22px;color:var(--green)">${fmtMoney(rev)}<span style="font-size:12px;color:var(--txt3)"> ₽</span></div></div>
+      <div class="metric"><div class="metric-lbl">Расход</div><div class="metric-val" style="font-size:22px;color:var(--red)">${fmtMoney(exp)}<span style="font-size:12px;color:var(--txt3)"> ₽</span></div></div>
+      <div class="metric"><div class="metric-lbl">Прибыль</div><div class="metric-val" style="font-size:22px;color:${profit>=0?'var(--gold)':'var(--red)'}">${fmtMoney(profit)}<span style="font-size:12px;color:var(--txt3)"> ₽</span></div></div>
+      <div class="metric"><div class="metric-lbl">Маржа</div><div class="metric-val" style="font-size:22px">${margin}<span style="font-size:12px;color:var(--txt3)"> %</span></div></div>
+      <div class="metric"><div class="metric-lbl">Выездов</div><div class="metric-val" style="font-size:22px">${list.length}</div></div>
+      <div class="metric"><div class="metric-lbl">Пробег</div><div class="metric-val" style="font-size:22px">${km}<span style="font-size:12px;color:var(--txt3)"> км</span></div></div>
+    </div>
+    <div class="section-lbl">Из чего складывается доход</div>
+    <div class="card flat">${bar('Оборудование',eqR,rev,'var(--gold)')}${bar('Работа',wkR,rev,'var(--blue)')}${bar('Транспорт',kmR,rev,'var(--green)')}${bar('Доп. услуги',svR,rev,'var(--ember)')}</div>
+    <button class="btn btn-primary" onclick="exportStatXlsx()">⬇ Статистика в Excel</button>`;
+}
+
+function exportAllXlsx(){
+  if(typeof XLSX==='undefined'){alert('Excel-модуль не загрузился — нужен интернет при первом открытии приложения.');return}
+  const rows=db.trips.map(t=>{const inv=calcInvoice(t);const e=calcExpense(t);return{'Проект':t.project,'Дата':fmtDate(t.date),'Тип':t.type,'Ответственный':t.author||'','Бригада':t.crew.join(', '),'Водитель':t.driver||'','Км':t.km,'Оборудование':t.items.map(i=>i.name+' ×'+i.qty).join('; '),'Не возвращено':t.items.filter(i=>i.returnable&&!i.returned).map(i=>i.name+' ×'+i.qty).join('; '),'Примечания':t.notes||'','Оборуд., ₽':inv.equip,'Работа, ₽':inv.work,'Транспорт, ₽':inv.km,'Услуги, ₽':inv.services,'Доход, ₽':inv.total,'Расход, ₽':e.total,'Прибыль, ₽':inv.total-e.total}});
+  const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:16},{wch:12},{wch:12},{wch:14},{wch:22},{wch:10},{wch:7},{wch:30},{wch:24},{wch:24},{wch:11},{wch:10},{wch:12},{wch:10},{wch:11},{wch:11},{wch:11}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Выезды');XLSX.writeFile(wb,'pyrolog-vyezdy.xlsx');
+}
+function exportStatXlsx(){
+  if(typeof XLSX==='undefined'){alert('Excel-модуль не загрузился — нужен интернет при первом открытии приложения.');return}
+  const list=tripsInPeriod(statPeriod);const pl=PERIODS.find(p=>p.d===statPeriod).l;
+  let rev=0,exp=0;const rows=list.map(t=>{const inv=calcInvoice(t);const e=calcExpense(t);rev+=inv.total;exp+=e.total;return{'Проект':t.project,'Дата':fmtDate(t.date),'Доход, ₽':inv.total,'Расход, ₽':e.total,'Прибыль, ₽':inv.total-e.total}});
+  rows.push({'Проект':'ИТОГО ('+pl+')','Дата':'','Доход, ₽':rev,'Расход, ₽':exp,'Прибыль, ₽':rev-exp});
+  const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:22},{wch:12},{wch:12},{wch:12},{wch:12}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Статистика');XLSX.writeFile(wb,'pyrolog-statistika.xlsx');
+}
+function exportInvoiceXlsx(id){
+  if(typeof XLSX==='undefined'){alert('Excel-модуль не загрузился — нужен интернет при первом открытии приложения.');return}
+  const t=db.trips.find(x=>x.id===id);const inv=calcInvoice(t);
+  const aoa=[['СЧЁТ ПО ВЫЕЗДУ'],['Проект',t.project],['Дата',fmtDate(t.date)],['Тип работ',t.type],['Ответственный',t.author||''],[],['Позиция','Кол-во','Цена, ₽','Сумма, ₽']];
+  t.items.forEach(i=>{const s=db.stock.find(x=>x.name===i.name);const p=s&&s.price?s.price:0;aoa.push([i.name,i.qty+' '+(i.unit||'шт'),p,p*i.qty])});
+  (t.work||[]).forEach(w=>aoa.push([w.name,(w.qty||1)+' смен',w.amount,(w.amount||0)*(w.qty||1)]));
+  aoa.push(['Транспорт',t.km+' км',db.rates.km||0,inv.km]);
+  (t.services||[]).forEach(s=>aoa.push([s.name,'доп.','',s.amount]));
+  aoa.push([]);aoa.push(['','','ИТОГО, ₽',inv.total]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:34},{wch:14},{wch:12},{wch:14}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Счёт');XLSX.writeFile(wb,'schet-vyezd-'+t.id+'.xlsx');
+}
+
+
+/* ============ RETURNABLE EQUIPMENT ============ */
+function outQty(name){let o=0;db.trips.forEach(t=>t.items.forEach(i=>{if(i.name===name&&i.returnable&&!i.returned)o+=i.qty}));return o}
+function availQty(s){return s.returnable?Math.max(0,s.qty-outQty(s.name)):s.qty}
+function canReturn(t){return canManage()||(me&&t.author===me.name)}
+function hasUnreturned(t){return t.items.some(i=>i.returnable&&!i.returned)}
+function returnItem(id,idx){const t=db.trips.find(x=>x.id===id);if(!t)return;t.items[idx].returned=true;saveDB(db);openTrip(id)}
+function returnAll(id){const t=db.trips.find(x=>x.id===id);if(!t)return;t.items.forEach(i=>{if(i.returnable)i.returned=true});saveDB(db);openTrip(id)}
+
+/* ============ UTILS ============ */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function ini(n){const p=n.trim().split(' ');return (p[0][0]+(p[1]?p[1][0]:(p[0][1]||''))).toUpperCase()}
+function fmtDate(d){if(!d)return'';const[y,m,dd]=d.split('-');return`${dd}.${m}.${y}`}
+function shake(id){const el=document.getElementById(id);el.style.borderColor='var(--red)';el.focus();setTimeout(()=>el.style.borderColor='',1200)}
+
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){showOnly('s-login');return;}
+  try{
+    await loadDB();
+    const emp=db.employees.find(e=>e.email===session.user.email);
+    if(emp){me=emp;}
+    else if(session.user.email===ADMIN_EMAIL){me={name:'Администратор',role:'Разработчик',perm:'admin',c:'#ff7d4d',bg:'rgba(255,87,34,.18)',email:ADMIN_EMAIL};}
+    else{await sb.auth.signOut();showOnly('s-login');return;}
+    startRealtime();renderNav();renderUserBtn();go('s-home');
+  }catch(e){console.error('boot:',e);showOnly('s-login');}
+}
+boot();
+</script>
+</body>
+</html>
