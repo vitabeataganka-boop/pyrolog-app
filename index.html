@@ -61,6 +61,10 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 #toast.err{background:var(--red-bg);color:var(--red);cursor:pointer}
 #toast.inf{background:var(--bg3);color:var(--txt2)}
 #offline-bar{display:none;position:fixed;top:0;left:0;right:0;background:var(--red);color:#fff;font-size:12px;text-align:center;padding:6px 12px;z-index:1000;font-weight:500}
+.pass-wrap{position:relative;display:flex;align-items:center;width:100%}
+.pass-wrap .fval{flex:1;padding-right:44px}
+.eye-btn{position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--txt3);padding:4px;display:flex;align-items:center;line-height:1}
+.eye-btn:active{color:var(--ember)}
 .metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .metric{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;position:relative;overflow:hidden}
 .metric::after{content:'';position:absolute;top:0;right:0;width:40px;height:40px;background:radial-gradient(circle at top right,var(--ember-bg),transparent 70%)}
@@ -164,10 +168,13 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
     </div>
     <div style="width:100%;margin:4px 0">
       <div class="lbl">Пароль</div>
-      <input class="fval" id="login-pass" type="password"
-        placeholder="••••••••"
-        autocomplete="current-password"
-        onkeydown="if(event.key==='Enter')doLogin()"/>
+      <div class="pass-wrap">
+        <input class="fval" id="login-pass" type="password"
+          placeholder="••••••••"
+          autocomplete="current-password"
+          onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button class="eye-btn" onclick="togglePass('login-pass',this)" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
     </div>
     <div id="login-error" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:4px"></div>
     <button class="btn btn-primary" id="login-btn" onclick="doLogin()">Войти</button>
@@ -318,6 +325,7 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
       <div class="lbl">Временный пароль</div>
       <div style="display:flex;gap:8px;align-items:center">
         <input class="fval mono" id="ae-pass" type="text" placeholder="Минимум 6 символов" style="flex:1"/>
+        <button class="eq-btn" onclick="togglePass('ae-pass',this)" type="button" style="height:44px;width:44px;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
         <button class="eq-btn" onclick="genPass()" style="width:auto;padding:0 14px;font-size:12px;text-transform:uppercase;letter-spacing:.5px;height:44px">Создать</button>
       </div>
       <div style="font-size:11px;color:var(--txt3);margin-top:4px">Сотрудник сможет войти сразу после добавления</div>
@@ -736,9 +744,12 @@ async function saveEmp(){
   if(db.employees.find(e=>e.email===email)){setErr('ae-error','Сотрудник с таким логином уже есть');return}
   const btn=document.getElementById('ae-btn');btn.disabled=true;btn.textContent='Создаём...';
   setErr('ae-error','');document.getElementById('ae-success').style.display='none';
-  const {data,error}=await sbReg.auth.signUp({email,password:pass});
-  if(error&&error.message!=='User already registered'){
-    setErr('ae-error','Ошибка Supabase: '+error.message);btn.disabled=false;btn.textContent='Добавить сотрудника';return;
+  const {data:fnData,error:fnError}=await sb.functions.invoke('create-user',{body:{email,password:pass}});
+  if(fnError||fnData?.error){
+    const errMsg=fnData?.error||fnError?.message||'Неизвестная ошибка';
+    const friendly={'User already registered':'Пользователь с таким логином уже существует','forbidden':'Нет прав для создания пользователей'};
+    setErr('ae-error',friendly[errMsg]||('Ошибка: '+errMsg));
+    btn.disabled=false;btn.textContent='Добавить сотрудника';return;
   }
   const palette=[['#ff7d4d','rgba(255,87,34,.18)'],['#4da3ff','rgba(77,163,255,.18)'],['#e8a13c','rgba(232,161,60,.18)'],['#5fc77f','rgba(95,199,127,.18)'],['#c98bff','rgba(170,100,255,.18)']];
   const p=palette[db.employees.length%palette.length];
@@ -752,6 +763,12 @@ async function saveEmp(){
   const ok=document.getElementById('ae-success');
   ok.style.display='block';
   ok.innerHTML='Сотрудник добавлен!<br>Передай данные для входа:<br><b>Логин: '+esc(toLogin(email))+'</b><br><b>Пароль: '+esc(pass)+'</b>';
+}
+function togglePass(id,btn){
+  const inp=document.getElementById(id);
+  const show=inp.type==='password';
+  inp.type=show?'text':'password';
+  btn.innerHTML=show?'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10 10 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9 9 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 }
 function genPass(){
   const chars='abcdefhjkmnpqrstuvwxyz23456789';
