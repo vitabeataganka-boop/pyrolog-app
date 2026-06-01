@@ -11,7 +11,7 @@
 <link rel="icon" href="/favicon.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json">
-<title>PyroLog</title>
+<title>PyroLog — учёт выездов</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -55,7 +55,12 @@ body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--txt);font-
 .fval:focus{outline:none;border-color:var(--ember)}
 select.fval{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236f6356' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
 textarea.fval{resize:none;min-height:74px}
-input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monospace}
+input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monospace;width:100%;min-width:0;-webkit-appearance:none;box-sizing:border-box}
+#toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);padding:8px 20px;border-radius:30px;font-size:13px;font-weight:500;z-index:999;transition:opacity .3s;white-space:nowrap;max-width:88vw;text-align:center;cursor:default}
+#toast.ok{background:var(--green-bg);color:var(--green)}
+#toast.err{background:var(--red-bg);color:var(--red);cursor:pointer}
+#toast.inf{background:var(--bg3);color:var(--txt2)}
+#offline-bar{display:none;position:fixed;top:0;left:0;right:0;background:var(--red);color:#fff;font-size:12px;text-align:center;padding:6px 12px;z-index:1000;font-weight:500}
 .metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .metric{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;position:relative;overflow:hidden}
 .metric::after{content:'';position:absolute;top:0;right:0;width:40px;height:40px;background:radial-gradient(circle at top right,var(--ember-bg),transparent 70%)}
@@ -151,10 +156,10 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
     <div class="login-title">PyroLog</div>
     <div class="login-sub">Вход в систему</div>
     <div style="width:100%;margin:8px 0 4px">
-      <div class="lbl">Логин (email)</div>
-      <input class="fval" id="login-email" type="email"
-        placeholder="name@pyrolog.local"
-        autocomplete="username"
+      <div class="lbl">Логин</div>
+      <input class="fval mono" id="login-email" type="text"
+        placeholder="ИвановДА"
+        autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false"
         onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()"/>
     </div>
     <div style="width:100%;margin:4px 0">
@@ -304,9 +309,10 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
   <div class="scroll">
     <div><div class="lbl">Имя</div><input class="fval" id="ae-name" placeholder="Например: Сергей"/></div>
     <div>
-      <div class="lbl">Логин (email для входа)</div>
-      <input class="fval" id="ae-email" type="email" placeholder="sergey@pyrolog.local"/>
-      <div style="font-size:11px;color:var(--txt3);margin-top:4px">Формат любой — можно pyrolog.local</div>
+      <div class="lbl">Логин (ФамилияИО)</div>
+      <input class="fval mono" id="ae-email" type="text" placeholder="СергеевАП"
+        autocorrect="off" autocapitalize="none" spellcheck="false"/>
+      <div style="font-size:11px;color:var(--txt3);margin-top:4px">Без пробелов · сотрудник вводит именно это</div>
     </div>
     <div>
       <div class="lbl">Временный пароль</div>
@@ -348,6 +354,9 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 </div>
 
 </div>
+
+<div id="offline-bar">⚡ Нет соединения — изменения не сохраняются</div>
+<div id="toast" style="display:none"></div>
 
 <script>
 /* ============ DATA ============ */
@@ -396,6 +405,9 @@ const SEED={
 const SUPABASE_URL='https://fdkwwnliblwjtymsvtpj.supabase.co';
 const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZka3d3bmxpYmx3anR5bXN2dHBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjkyOTEsImV4cCI6MjA5NTgwNTI5MX0.J1xUZoWrHKrV9_QFLE6s8t3SDULroFy7MNGuKf_0Ois';
 const ADMIN_EMAIL='admin@pyrolog.local';
+const DOMAIN='@pyrolog.local';
+function toEmail(s){s=(s||'').trim().toLowerCase();return s.includes('@')?s:(s+DOMAIN);}
+function toLogin(s){return(s||'').split('@')[0];}
 const {createClient}=supabase;
 const sb=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const sbReg=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -406,7 +418,12 @@ let _realtimeSub=null;
 
 async function loadDB(){
   const {data,error}=await sb.from('app_state').select('data').eq('id',1).single();
-  if(error)throw error;
+  if(error){
+    const emsg=(error.message||'').toLowerCase();
+    if(error.status===401||emsg.includes('jwt')){logout();throw error;}
+    if(emsg.includes('paused')||error.status===503)throw new Error('PROJECT_PAUSED');
+    throw error;
+  }
   db=data.data;
   if(!db.rates)db.rates={km:30,fuel:12,wage:3000};
   if(db.rates.fuel===undefined)db.rates.fuel=12;
@@ -417,8 +434,17 @@ let _st=null;
 function saveDB(d){
   clearTimeout(_st);
   _st=setTimeout(async()=>{
-    try{await sb.from('app_state').update({data:db,updated_at:new Date().toISOString()}).eq('id',1);}
-    catch(e){console.warn('save error',e);}
+    try{
+      const {error}=await sb.from('app_state').update({data:db,updated_at:new Date().toISOString()}).eq('id',1);
+      if(error)throw error;
+    }catch(e){
+      console.warn('save error',e);
+      const msg=(e?.message||'').toLowerCase();
+      if(e?.status===401||msg.includes('jwt')||msg.includes('session')){
+        showToast('Сессия истекла — войди снова','err',0);setTimeout(logout,2500);return;
+      }
+      showToast('Не сохранено — нет связи','err',0);
+    }
   },200);
 }
 
@@ -443,15 +469,24 @@ function canManage(){return me&&(me.perm==='manager'||me.perm==='admin')}
 function isAdmin(){return me&&me.perm==='admin'}
 function showOnly(id){document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));document.getElementById(id).classList.remove('hidden')}
 function setErr(id,msg){const el=document.getElementById(id);if(el)el.textContent=msg}
+let _toastT=null;
+function showToast(msg,type,dur){
+  type=type||'inf';dur=dur===undefined?3000:dur;
+  const el=document.getElementById('toast');if(!el)return;
+  el.textContent=msg;el.className=type;el.style.display='block';el.style.opacity='1';
+  clearTimeout(_toastT);el.onclick=null;
+  if(dur>0)_toastT=setTimeout(()=>{el.style.opacity='0';setTimeout(()=>el.style.display='none',300);},dur);
+  if(type==='err'&&dur===0)el.onclick=()=>{el.style.opacity='0';setTimeout(()=>el.style.display='none',300);};
+}
 
 async function doLogin(){
-  const email=(document.getElementById('login-email').value||'').trim();
+  const email=toEmail(document.getElementById('login-email').value||'');
   const pass=document.getElementById('login-pass').value;
   if(!email||!pass){setErr('login-error','Заполни оба поля');return}
   const btn=document.getElementById('login-btn');btn.disabled=true;btn.textContent='Входим...';setErr('login-error','');
   const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
   if(error){
-    const m={'Invalid login credentials':'Неверный логин или пароль','Email not confirmed':'Подтверди email — письмо в почте'};
+    const m={'Invalid login credentials':'Неверный логин или пароль','Email not confirmed':'Аккаунт не подтверждён — обратись к руководителю','Failed to fetch':'Нет соединения с сервером'};
     setErr('login-error',m[error.message]||('Ошибка: '+error.message));
     btn.disabled=false;btn.textContent='Войти';return;
   }
@@ -491,8 +526,19 @@ function startRealtime(){
       if(!db.rates)db.rates={km:30,fuel:12,wage:3000};
       if(!db.workRates)db.workRates=[];
       if(['s-home','s-stock','s-team','s-stat'].includes(curScreen))go(curScreen);
-    }).subscribe();
+    }).subscribe((status,err)=>{
+      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        console.warn('Realtime disconnect:',status,err);
+        setTimeout(()=>{if(me)startRealtime();},5000);
+      }
+    });
 }
+setInterval(()=>{
+  if(!me||!_realtimeSub)return;
+  if(_realtimeSub.state==='closed'||_realtimeSub.state==='errored'){
+    console.warn('Realtime reconnect...');startRealtime();
+  }
+},30000);
 
 
 function renderNav(){
@@ -661,7 +707,7 @@ function renderTeam(){
       <div style="display:flex;align-items:center;gap:11px">
         <div class="avatar" style="width:40px;height:40px;font-size:15px;background:${e.bg};color:${e.c}">${ini(e.name)}</div>
         <div style="flex:1"><div style="font-size:16px;font-weight:500">${esc(e.name)}</div>
-          <div style="font-size:12px;color:var(--txt2)">${esc(e.role)}${canManage()&&e.email?` · <span style='color:var(--txt3)'>${esc(e.email)}</span>`:''}</div></div>
+          <div style="font-size:12px;color:var(--txt2)">${esc(e.role)}${canManage()&&e.email?` · <span style='color:var(--txt3)'>${esc(toLogin(e.email))}</span>`:''}</div></div>
         <span class="login-role ${PERM_CLS[e.perm]}">${PERM_LBL[e.perm]}</span>
       </div>
       <div class="sep" style="margin:10px 0"></div>
@@ -675,17 +721,19 @@ function renderTeam(){
 }
 function delEmp(i){
   const emp=db.employees[i];
-  if(!confirm('Удалить «'+emp.name+'»?\n\nОн сразу потеряет доступ к данным.\nАккаунт входа ('+emp.email+') останется в Supabase — удали его там вручную при необходимости.'))return;
+  if(me&&emp.email===me.email){showToast('Нельзя удалить самого себя','err',3000);return;}
+  if(!confirm('Удалить «'+emp.name+'»?\n\nОн сразу потеряет доступ к данным.'))return;
   db.employees.splice(i,1);saveDB(db);renderTeam();
 }
 async function saveEmp(){
   const name=document.getElementById('ae-name').value.trim();
-  const email=(document.getElementById('ae-email').value||'').trim();
+  const rawLogin=(document.getElementById('ae-email').value||'').trim();
+  const email=toEmail(rawLogin);
   const pass=(document.getElementById('ae-pass').value||'').trim();
   if(!name){shake('ae-name');return}
   if(!email){shake('ae-email');return}
   if(pass.length<6){setErr('ae-error','Пароль — минимум 6 символов');return}
-  if(db.employees.find(e=>e.email===email)){setErr('ae-error','Сотрудник с таким email уже есть');return}
+  if(db.employees.find(e=>e.email===email)){setErr('ae-error','Сотрудник с таким логином уже есть');return}
   const btn=document.getElementById('ae-btn');btn.disabled=true;btn.textContent='Создаём...';
   setErr('ae-error','');document.getElementById('ae-success').style.display='none';
   const {data,error}=await sbReg.auth.signUp({email,password:pass});
@@ -703,7 +751,7 @@ async function saveEmp(){
   btn.disabled=false;btn.textContent='Добавить сотрудника';
   const ok=document.getElementById('ae-success');
   ok.style.display='block';
-  ok.innerHTML='Сотрудник добавлен!<br>Передай данные для входа:<br><b>Логин: '+esc(email)+'</b><br><b>Пароль: '+esc(pass)+'</b>';
+  ok.innerHTML='Сотрудник добавлен!<br>Передай данные для входа:<br><b>Логин: '+esc(toLogin(email))+'</b><br><b>Пароль: '+esc(pass)+'</b>';
 }
 function genPass(){
   const chars='abcdefhjkmnpqrstuvwxyz23456789';
@@ -858,6 +906,16 @@ function ini(n){const p=n.trim().split(' ');return (p[0][0]+(p[1]?p[1][0]:(p[0][
 function fmtDate(d){if(!d)return'';const[y,m,dd]=d.split('-');return`${dd}.${m}.${y}`}
 function shake(id){const el=document.getElementById(id);el.style.borderColor='var(--red)';el.focus();setTimeout(()=>el.style.borderColor='',1200)}
 
+window.addEventListener('offline',()=>{
+  const b=document.getElementById('offline-bar');if(b)b.style.display='block';
+  showToast('Нет соединения — данные не сохраняются','err',0);
+});
+window.addEventListener('online',async()=>{
+  const b=document.getElementById('offline-bar');if(b)b.style.display='none';
+  showToast('Соединение восстановлено','ok',3000);
+  if(me){try{await loadDB();go(curScreen);}catch(e){}}
+});
+
 async function boot(){
   const {data:{session}}=await sb.auth.getSession();
   if(!session){showOnly('s-login');return;}
@@ -868,7 +926,14 @@ async function boot(){
     else if(session.user.email===ADMIN_EMAIL){me={name:'Администратор',role:'Разработчик',perm:'admin',c:'#ff7d4d',bg:'rgba(255,87,34,.18)',email:ADMIN_EMAIL};}
     else{await sb.auth.signOut();showOnly('s-login');return;}
     startRealtime();renderNav();renderUserBtn();go('s-home');
-  }catch(e){console.error('boot:',e);showOnly('s-login');}
+  }catch(e){
+    console.error('boot:',e);
+    if(e?.message==='PROJECT_PAUSED'){
+      document.querySelector('.app').innerHTML='<div style="padding:40px 24px;text-align:center;color:var(--txt2)"><div style="font-size:48px;margin-bottom:16px">😴</div><div style="font-size:18px;font-weight:600;color:var(--txt);margin-bottom:10px">Сервис на паузе</div><div style="font-size:13px;line-height:1.9">Бесплатный Supabase засыпает<br>через 7 дней без активности.<br><br>Зайди на <b style=\"color:var(--ember2)\">supabase.com</b><br>открой проект → нажми <b>Resume</b><br>и обнови эту страницу.</div><div style="margin-top:24px"><button onclick=\"location.reload()\" style=\"background:linear-gradient(135deg,var(--ember),#c8340a);color:#fff;border:none;border-radius:10px;padding:13px 28px;font-size:14px;cursor:pointer;font-family:Oswald,sans-serif;letter-spacing:1px\">Обновить страницу</button></div></div>';
+      return;
+    }
+    showOnly('s-login');
+  }
 }
 boot();
 </script>
