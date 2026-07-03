@@ -1508,9 +1508,10 @@ function overtimeCost(t){return (t.overtime||[]).reduce((a,o)=>a+(+o.hours||0)*(
 function calcInvoice(t){
   let equip=0;(t.items||[]).forEach(i=>{const s=db.stock.find(x=>x.name===i.name);equip+=(s&&s.price?s.price:0)*billQty(i)});
   const km=(db.rates.km||0)*(t.km||0);
+  const delivery=t.driverRate||0; // разовая «доставка» — то же самое, что платим водителю, выставляем заказчику
   const work=(t.work||[]).reduce((a,w)=>a+(+w.amount||0)*(+w.qty||1),0);
   const services=(t.services||[]).reduce((a,s)=>a+(+s.amount||0),0);
-  return {equip,km,work,services,total:equip+km+work+services};
+  return {equip,km,delivery,work,services,total:equip+km+delivery+work+services};
 }
 function calcExpense(t){
   let cons=0;(t.items||[]).forEach(i=>{const s=db.stock.find(x=>x.name===i.name);if(s&&!s.returnable)cons+=(s.cost||0)*costQty(i)});
@@ -1615,7 +1616,8 @@ function renderInvoice(id){
   let rows='';
   t.items.forEach(i=>{const s=db.stock.find(x=>x.name===i.name);const p=s&&s.price?s.price:0;const bq=billQty(i);if(p*bq===0&&bq===0)return;rows+=invRow(esc(i.name),bq+' '+(i.unit||'шт')+' × '+fmtMoney(p),fmtMoney(p*bq))});
   (t.work||[]).forEach((w,wi)=>{rows+=invRow(esc(w.name)+` <span class="eq-btn del" style="display:inline-flex;width:20px;height:20px;font-size:11px;vertical-align:middle" onclick="rmWork(${id},${wi})">×</span>`,(w.qty||1)+' × '+fmtMoney(w.amount),fmtMoney((w.amount||0)*(w.qty||1)))});
-  rows+=invRow('Транспорт',t.km+' км × '+fmtMoney(db.rates.km||0),fmtMoney(inv.km));
+  if(inv.delivery>0)rows+=invRow('Доставка','1 × '+fmtMoney(inv.delivery),fmtMoney(inv.delivery));
+  if(t.km>0)rows+=invRow('Километраж',t.km+' км × '+fmtMoney(db.rates.km||0),fmtMoney(inv.km));
   (t.services||[]).forEach((s,si)=>{rows+=invRow(esc(s.name)+` <span class="eq-btn del" style="display:inline-flex;width:20px;height:20px;font-size:11px;vertical-align:middle" onclick="rmService(${id},${si})">×</span>`,'доп. услуга',fmtMoney(s.amount))});
   const wr=(db.workRates||[]).map((w,i)=>`<option value="${i}">${esc(w.name)} — ${fmtMoney(w.amount)} ₽</option>`).join('');
   const expRows=`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--txt3)"><span>Расходники (по факту)</span><span class="mono">${fmtMoney(exp.cons)} ₽</span></div>
@@ -1670,7 +1672,7 @@ function objName(id){const o=db.objects.find(x=>x.id===id);return o?o.name:''}
 function objType(id){const o=db.objects.find(x=>x.id===id);return o?OBJ_TYPE_LBL[o.type]:''}
 function exportAllXlsx(){
   if(typeof XLSX==='undefined'){alert('Excel-модуль не загрузился — нужен интернет при первом открытии приложения.');return}
-  const rows=db.trips.map(t=>{const inv=calcInvoice(t);const e=calcExpense(t);const ot=(t.overtime||[]).reduce((a,o)=>a+(+o.hours||0),0);const prip=pripiskaList(t).map(i=>i.name+' ×'+i.pripiska).join('; ');return{'Объект':objName(t.objectId),'Тип объекта':objType(t.objectId),'Дата':fmtDate(t.date),'Тип работ':t.type,'Ответственный':t.author||'','Бригада':t.crew.join(', '),'Водитель':t.driver||'','Км':t.km,'Взято':t.items.map(i=>i.name+' ×'+(i.taken||i.qty)).join('; '),'Использовано':t.items.filter(i=>!i.returnable).map(i=>i.name+' ×'+i.used).join('; '),'Приписано':prip,'Не возвращено':t.items.filter(i=>i.returnable&&!i.returned).map(i=>i.name+' ×'+(i.taken||i.qty)).join('; '),'Переработка, ч':ot,'Примечания':t.notes||'','Оборуд., ₽':inv.equip,'Работа, ₽':inv.work,'Транспорт, ₽':inv.km,'Услуги, ₽':inv.services,'Доход, ₽':inv.total,'Расход, ₽':e.total,'Прибыль, ₽':inv.total-e.total}});
+  const rows=db.trips.map(t=>{const inv=calcInvoice(t);const e=calcExpense(t);const ot=(t.overtime||[]).reduce((a,o)=>a+(+o.hours||0),0);const prip=pripiskaList(t).map(i=>i.name+' ×'+i.pripiska).join('; ');return{'Объект':objName(t.objectId),'Тип объекта':objType(t.objectId),'Дата':fmtDate(t.date),'Тип работ':t.type,'Ответственный':t.author||'','Бригада':t.crew.join(', '),'Водитель':t.driver||'','Км':t.km,'Взято':t.items.map(i=>i.name+' ×'+(i.taken||i.qty)).join('; '),'Использовано':t.items.filter(i=>!i.returnable).map(i=>i.name+' ×'+i.used).join('; '),'Приписано':prip,'Не возвращено':t.items.filter(i=>i.returnable&&!i.returned).map(i=>i.name+' ×'+(i.taken||i.qty)).join('; '),'Переработка, ч':ot,'Примечания':t.notes||'','Оборуд., ₽':inv.equip,'Доставка, ₽':inv.delivery,'Километраж, ₽':inv.km,'Работа, ₽':inv.work,'Услуги, ₽':inv.services,'Доход, ₽':inv.total,'Расход, ₽':e.total,'Прибыль, ₽':inv.total-e.total}});
   const ws=XLSX.utils.json_to_sheet(rows);
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Выезды');XLSX.writeFile(wb,'pyrolog-vyezdy.xlsx');
 }
@@ -1749,30 +1751,50 @@ function importStockXlsx(input){
    mode='customer' → режиссёру/заказчику (он же продюсер): приписка НЕ показывается отдельной строкой —
                       сливается с "использовано", т.к. заказчик и так платит за неё как за реальный расход
                       (это заложено в саму сумму счёта через billQty, одинаково для обоих режимов). */
+/* Отчёт по объекту — постатейно по дням, как исторически присылали заказчику/генеральному
+   (формат: дата → строки «название/кол-во/цена/сумма» → итог за день → ... → общий итог).
+   mode='general'  → генеральному: те же строки + пометка «приписано N» у позиций с приписью,
+                      плюс второй лист со сводкой и разбивкой личной доли.
+   mode='customer' → заказчику/режиссёру: без пометок о приписке (она уже незаметно учтена
+                      в сумме — билли по «использовано + приписано», см. billQty). */
 function exportObjectXlsx(objId,mode){
   if(typeof XLSX==='undefined'){alert('Excel-модуль не загрузился — нужен интернет при первом открытии.');return}
   const o=db.objects.find(x=>x.id===objId);if(!o)return;const fin=calcObject(o);
-  const withPrip=(mode==='general');
+  const withMarks=(mode==='general');
   const trips=objTrips(objId).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  // Лист 1: по дням
-  const rows=trips.map(t=>{
-    const inv=calcInvoice(t);const e=calcExpense(t);
-    const usedCol=withPrip
-      ?t.items.filter(i=>!i.returnable).map(i=>i.name+' ×'+i.used).join('; ')
-      :t.items.filter(i=>!i.returnable).map(i=>i.name+' ×'+billQty(i)).join('; '); // заказчику — использовано+приписано слитно
-    const base={'Дата':fmtDate(t.date),'Тип':t.type,'Бригада':t.crew.join(', '),'Ответственный':t.author||'','Км':t.km,'Использовано':usedCol,'Доход, ₽':inv.total,'Расход, ₽':e.total,'Прибыль, ₽':inv.total-e.total};
-    if(withPrip)base['Приписано (левак)']=pripiskaList(t).map(i=>i.name+' ×'+i.pripiska).join('; ');
-    return base;
+
+  const aoa=[[withMarks?'ОТЧЁТ ГЕНЕРАЛЬНОМУ — '+o.name.toUpperCase():'ОТЧЁТ — '+o.name.toUpperCase()],[],
+    ['Позиция','Кол-во','Цена, ₽','Сумма, ₽','Заметка']];
+  let grandTotal=0;
+  trips.forEach(t=>{
+    const inv=calcInvoice(t);
+    aoa.push([fmtDate(t.date)]);
+    (t.work||[]).forEach(w=>aoa.push([w.name,(w.qty||1),w.amount,(w.amount||0)*(w.qty||1),'']));
+    if(inv.delivery>0)aoa.push(['Доставка',1,inv.delivery,inv.delivery,'']);
+    if(t.km>0)aoa.push(['Километраж',t.km,db.rates.km||0,inv.km,'']);
+    t.items.forEach(i=>{
+      const s=db.stock.find(x=>x.name===i.name);const p=s&&s.price?s.price:0;const bq=billQty(i);
+      if(bq===0&&p===0)return;
+      const mark=(withMarks&&(+i.pripiska||0)>0)?('приписано '+i.pripiska):'';
+      aoa.push([i.name,bq,p,p*bq,mark]);
+    });
+    (t.services||[]).forEach(s=>aoa.push([s.name,1,s.amount,s.amount,'']));
+    aoa.push(['','','',inv.total,'']); // итог за день — в колонке "Сумма", без подписи (как в исходном формате)
+    grandTotal+=inv.total;
+    aoa.push([]); // разделитель между днями
   });
-  // ИТОГО
-  const total={'Дата':'ИТОГО','Тип':'','Бригада':'','Ответственный':'','Км':fin.km,'Использовано':'','Доход, ₽':fin.rev,'Расход, ₽':fin.exp,'Прибыль, ₽':fin.profit};if(withPrip)total['Приписано (левак)']='';
-  rows.push(total);
-  const ws=XLSX.utils.json_to_sheet(rows);
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'По дням');
-  // Лист 2: сводка (личная доля — только для генерального)
-  const sum=[['Объект',o.name],['Тип',OBJ_TYPE_LBL[o.type]],['Период',(o.dateStart?fmtDate(o.dateStart):'')+' – '+(o.dateEnd?fmtDate(o.dateEnd):'')],[],['Доход, ₽',fin.rev],['Расход, ₽',fin.exp],['Прибыль, ₽',fin.profit]];
-  if(withPrip){sum.push([]);sum.push(['— Распределение —']);sum.push(['Прибыль с оборудования',fin.profitEquip]);sum.push(['Прибыль с расходников',fin.profitCons]);sum.push(['Чистая прибыль',fin.profitNet]);sum.push(['Личная доля',Math.round(fin.igor)]);sum.push(['Компании',Math.round(fin.company)]);}
-  const ws2=XLSX.utils.aoa_to_sheet(sum);XLSX.utils.book_append_sheet(wb,ws2,'Сводка');
+  aoa.push(['','','ИТОГ',grandTotal,'']);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:32},{wch:9},{wch:11},{wch:13},{wch:22}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Отчёт');
+
+  if(withMarks){
+    const sum=[['Объект',o.name],['Тип',OBJ_TYPE_LBL[o.type]],['Период',(o.dateStart?fmtDate(o.dateStart):'')+' – '+(o.dateEnd?fmtDate(o.dateEnd):'')],[],
+      ['Доход, ₽',fin.rev],['Расход, ₽',fin.exp],['Прибыль, ₽',fin.profit],[],
+      ['— Распределение —'],['Прибыль с оборудования',fin.profitEquip],['Прибыль с расходников',fin.profitCons],['Чистая прибыль',fin.profitNet],
+      ['Личная доля',Math.round(fin.igor)],['Компании',Math.round(fin.company)]];
+    const ws2=XLSX.utils.aoa_to_sheet(sum);XLSX.utils.book_append_sheet(wb,ws2,'Сводка');
+  }
   XLSX.writeFile(wb,'otchet-'+(mode==='general'?'generalny':'zakazchiku')+'-'+o.name.replace(/[^a-zа-я0-9]+/gi,'_')+'.xlsx');
 }
 function exportStatXlsx(){
@@ -1798,7 +1820,8 @@ function exportInvoiceXlsx(id){
   const aoa=[['СЧЁТ ПО ВЫЕЗДУ'],['Проект',t.project],['Дата',fmtDate(t.date)],['Тип работ',t.type],['Ответственный',t.author||''],[],['Позиция','Кол-во','Цена, ₽','Сумма, ₽']];
   t.items.forEach(i=>{const s=db.stock.find(x=>x.name===i.name);const p=s&&s.price?s.price:0;const bq=billQty(i);aoa.push([i.name,bq+' '+(i.unit||'шт'),p,p*bq])});
   (t.work||[]).forEach(w=>aoa.push([w.name,(w.qty||1)+' смен',w.amount,(w.amount||0)*(w.qty||1)]));
-  aoa.push(['Транспорт',t.km+' км',db.rates.km||0,inv.km]);
+  if(inv.delivery>0)aoa.push(['Доставка','1',inv.delivery,inv.delivery]);
+  if(t.km>0)aoa.push(['Километраж',t.km+' км',db.rates.km||0,inv.km]);
   (t.services||[]).forEach(s=>aoa.push([s.name,'доп.','',s.amount]));
   aoa.push([]);aoa.push(['','','ИТОГО, ₽',inv.total]);
   const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:34},{wch:14},{wch:12},{wch:14}];
