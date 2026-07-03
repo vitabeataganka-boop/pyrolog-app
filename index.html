@@ -402,10 +402,12 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 <div class="screen hidden" id="s-schedule">
   <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Назад</span><span class="topbar-title" style="font-size:16px">Расписание</span></div>
   <div class="scroll">
-    <button class="btn btn-primary" onclick="toggleSchedulePicker()">+ Добавить в расписание</button>
-    <div class="rp-panel hidden" id="sp-panel">
-      <input class="fval" id="sp-search" placeholder="Введите название объекта..." oninput="renderSpResults()" autocomplete="off"/>
-      <div id="sp-results"></div>
+    <div id="sp-add-wrap">
+      <button class="btn btn-primary" onclick="toggleSchedulePicker()">+ Добавить в расписание</button>
+      <div class="rp-panel hidden" id="sp-panel">
+        <input class="fval" id="sp-search" placeholder="Введите название объекта..." oninput="renderSpResults()" autocomplete="off"/>
+        <div id="sp-results"></div>
+      </div>
     </div>
     <div id="schedule-body"></div>
   </div>
@@ -539,6 +541,7 @@ function migrate(d){
   if(!d.rates)d.rates={...DEFAULT_RATES};
   for(const k in DEFAULT_RATES){if(d.rates[k]===undefined)d.rates[k]=DEFAULT_RATES[k];}
   if(!Array.isArray(d.workRates))d.workRates=[{name:'Работа пиротехника (смена)',amount:6000}];
+  if(!Array.isArray(d.employees))d.employees=[];
   if(!Array.isArray(d.transport))d.transport=[];
   if(!Array.isArray(d.stock))d.stock=[];
   d.stock.forEach(s=>{if(s.note===undefined)s.note='';if(s.cost===undefined)s.cost=0;if(s.price===undefined)s.price=0;});
@@ -592,7 +595,7 @@ function migrate(d){
     }
   });
   // 4) Статус «завершён» — по умолчанию все объекты активны; расписание (заготовки на дату)
-  d.objects.forEach(o=>{if(o.completed===undefined)o.completed=false;if(!Array.isArray(o.plan))o.plan=[];});
+  d.objects.forEach(o=>{if(o.completed===undefined)o.completed=false;if(!Array.isArray(o.plan))o.plan=[];o.plan.forEach(p=>{if(p.ts===undefined)p.ts=0;});});
   return d;
 }
 
@@ -724,11 +727,11 @@ setInterval(()=>{
 
 
 function renderNav(){
-  const items=navItems();const un=totalUnread();
+  const items=navItems();const un=totalUnread();const sUn=me?scheduleUnread():0;
   ['nav-home','nav-stock','nav-team','nav-price','nav-stat'].forEach(nid=>{
     const cont=document.getElementById(nid);if(!cont)return;
     const cur=nid.replace('nav-','s-');
-    cont.innerHTML=items.map(n=>`<div class="nav-item ${n.id===cur?'active':''}" onclick="go('${n.id}')"><svg viewBox="0 0 24 24">${n.icon}</svg>${n.lbl}${(n.id==='s-team'&&un>0)?`<span class="nav-badge">${un>99?'99+':un}</span>`:''}</div>`).join('');
+    cont.innerHTML=items.map(n=>`<div class="nav-item ${n.id===cur?'active':''}" onclick="go('${n.id}')"><svg viewBox="0 0 24 24">${n.icon}</svg>${n.lbl}${(n.id==='s-team'&&un>0)?`<span class="nav-badge">${un>99?'99+':un}</span>`:''}${(n.id==='s-home'&&sUn>0)?`<span class="nav-badge">${sUn>99?'99+':sUn}</span>`:''}</div>`).join('');
   });
 }
 function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary();if(id==='s-object')renderObject(curObjId);if(id==='s-schedule')renderSchedule();if(id==='s-chat')renderChat();if(id==='s-feedback')renderFeedback();if(id==='s-fbthread')renderFbThread();if(id.indexOf('s-new')===0)syncWizardChrome();renderNav();}
@@ -759,9 +762,24 @@ function allPlanEntries(){
   db.objects.forEach(o=>(o.plan||[]).forEach(p=>out.push({...p,objId:o.id,objName:o.name,objCompleted:o.completed})));
   return out;
 }
+/* Заготовки, где именно я в составе бригады — для обычного сотрудника */
+function myPlanEntries(){
+  if(!me)return [];
+  return allPlanEntries().filter(p=>(p.crew||[]).includes(me.name));
+}
+/* Непрочитанные назначения — новые заготовки с моим участием с момента последнего просмотра расписания */
+function scheduleUnread(){
+  if(!me)return 0;
+  const lr=lastRead('schedule');
+  const mine=canManage()?allPlanEntries():myPlanEntries();
+  return mine.filter(p=>(p.ts||0)>lr).length;
+}
 function renderSchedule(){
+  const mgr=canManage();
+  document.getElementById('sp-add-wrap').classList.toggle('hidden',!mgr);
   const today=new Date().toISOString().split('T')[0];
-  const all=allPlanEntries().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const all=(mgr?allPlanEntries():myPlanEntries()).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  markRead('schedule');renderNav();
   const upcoming=all.filter(p=>p.date>=today),past=all.filter(p=>p.date<today);
   const rowHtml=p=>{
     const items=Object.entries(p.items||{});
@@ -773,11 +791,11 @@ function renderSchedule(){
       ${p.note?`<div class="eq-meta" style="margin-top:3px">Заметка: ${esc(p.note)}</div>`:''}
       <div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn btn-primary" style="flex:1;padding:10px" onclick="startReportFromPlan(${p.objId},${p.id})">Превратить в отчёт</button>
-        <button class="eq-btn del" onclick="delPlan(${p.objId},${p.id})">🗑</button>
+        ${mgr?`<button class="eq-btn del" onclick="delPlan(${p.objId},${p.id})">🗑</button>`:''}
       </div></div>`;
   };
   let html=`<div class="section-lbl">Предстоящие</div>`;
-  html+=upcoming.length?upcoming.map(rowHtml).join(''):'<div class="empty">Пока ничего не запланировано</div>';
+  html+=upcoming.length?upcoming.map(rowHtml).join(''):`<div class="empty">${mgr?'Пока ничего не запланировано':'На тебя пока ничего не назначено'}</div>`;
   if(past.length){html+=`<div class="section-lbl">Дата прошла</div>`+past.map(rowHtml).join('');}
   document.getElementById('schedule-body').innerHTML=html;
 }
@@ -816,7 +834,7 @@ function renderHome(){
   }
   document.getElementById('home-actions').innerHTML=
     (canManage()?`<button class="btn btn-primary" onclick="startNewObject()">+ Новый объект</button>`:'')+
-    (canManage()?`<button class="btn btn-ghost" onclick="go('s-schedule')">📅 Расписание</button>`:'')+
+    `<button class="btn btn-ghost" onclick="go('s-schedule')"><span style="display:inline-flex;align-items:center;gap:8px">📅 Расписание${badge(scheduleUnread())}</span></button>`+
     `<button class="btn ${canManage()?'btn-ghost':'btn-primary'}" onclick="toggleReportPicker()">+ Новый отчёт (выезд)</button>`+
     `<div class="rp-panel hidden" id="rp-panel">
        <input class="fval" id="rp-search" placeholder="Введите название объекта..." oninput="renderRpResults()" autocomplete="off"/>
@@ -1149,7 +1167,7 @@ function submitTrip(){draft.notes=document.getElementById('n-notes').value;
 function saveDraftAsPlan(){
   const o=db.objects.find(x=>x.id===draft.objectId);if(!o){go('s-home');return}
   const pid=o.plan.length?Math.max(...o.plan.map(p=>p.id))+1:1;
-  o.plan.push({id:pid,date:draft.date,crew:[...draft.crew],items:{...draft.items},note:draft.notes||''});
+  o.plan.push({id:pid,date:draft.date,crew:[...draft.crew],items:{...draft.items},note:draft.notes||'',ts:Date.now()});
   saveDB(db);
   showToast('Добавлено в расписание','ok',2200);
   go('s-schedule');
