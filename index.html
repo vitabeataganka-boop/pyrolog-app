@@ -266,7 +266,7 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
   <div class="topbar"><span class="back-btn" onclick="go('s-new3')">← Назад</span><span class="topbar-title" id="wt-new4" style="font-size:16px">Новый выезд</span><span class="topbar-sub">4 / 4</span></div>
   <div class="scroll">
     <div class="step-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot active"></div></div>
-    <div><div class="lbl">Примечания / отклонения</div><textarea class="fval" id="n-notes" placeholder="Что нестандартного: приписали, сломали, достали..."></textarea></div>
+    <div id="notes-wrap"><div class="lbl">Примечания / отклонения</div><textarea class="fval" id="n-notes" placeholder="Что нестандартного: приписали, сломали, достали..."></textarea></div>
     <div><div class="lbl">Проверь перед отправкой</div><div class="card flat" id="summary-card"></div></div>
     <button class="btn btn-primary" id="wiz-submit-btn" onclick="submitTrip()">Отправить отчёт</button>
   </div>
@@ -361,6 +361,7 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
       <div style="font-size:11px;color:var(--txt3);margin-top:4px">Сотрудник сможет войти сразу после добавления</div>
     </div>
     <div><div class="lbl">Должность</div><input class="fval" id="ae-role" placeholder="Пиротехник" value="Пиротехник"/></div>
+    <div><div class="lbl">ЗП, ₽ за выезд *</div><input class="fval mono" id="ae-wage" type="number" min="0" placeholder="3000"/></div>
     <div><div class="lbl">Телефон (для звонка)</div><input class="fval mono" id="ae-phone" type="tel" placeholder="+7 900 000-00-00" autocomplete="off"/></div>
     <div><div class="lbl">Уровень доступа</div><select class="fval" id="ae-perm">
       <option value="worker">Работник — заполняет выезды</option>
@@ -417,7 +418,7 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 <div class="screen hidden" id="s-newobj">
   <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Отмена</span><span class="topbar-title" style="font-size:16px">Новый объект</span></div>
   <div class="scroll">
-    <div><div class="lbl">Название объекта / проекта</div><input class="fval" id="no-name" placeholder="Например: Мажор, сезон 4"/></div>
+    <div><div class="lbl">Название объекта / проекта</div><input class="fval" id="no-name" placeholder="Например: Мажор, сезон 4"/><div id="no-name-error" style="color:var(--red);font-size:12px;min-height:16px;margin-top:4px"></div></div>
     <div class="metric-grid">
       <div><div class="lbl">Начало</div><input class="fval mono" id="no-start" type="date" onchange="onObjStartChange()"/></div>
       <div><div class="lbl">Конец</div><input class="fval mono" id="no-end" type="date" onchange="onObjEndChange()"/></div>
@@ -448,6 +449,12 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
     <input class="fval" id="chat-input" placeholder="Сообщение..." style="flex:1" onkeydown="if(event.key==='Enter')sendChat()"/>
     <button class="btn btn-primary" style="width:auto;padding:0 18px" onclick="sendChat()">→</button>
   </div>
+</div>
+
+<!-- ===== AUDIT LOG (admin) ===== -->
+<div class="screen hidden" id="s-auditlog">
+  <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Назад</span><span class="topbar-title" style="font-size:16px">Журнал действий</span></div>
+  <div class="scroll" id="auditlog-body"></div>
 </div>
 
 <!-- ===== FEEDBACK ===== -->
@@ -542,12 +549,14 @@ function migrate(d){
   for(const k in DEFAULT_RATES){if(d.rates[k]===undefined)d.rates[k]=DEFAULT_RATES[k];}
   if(!Array.isArray(d.workRates))d.workRates=[{name:'Работа пиротехника (смена)',amount:6000}];
   if(!Array.isArray(d.employees))d.employees=[];
+  d.employees.forEach(e=>{if(e.wage===undefined)e.wage=d.rates.wage||3000;}); // раньше зарплата была общей ставкой — переносим на каждого сотрудника при первом заходе
   if(!Array.isArray(d.transport))d.transport=[];
   if(!Array.isArray(d.stock))d.stock=[];
   d.stock.forEach(s=>{if(s.note===undefined)s.note='';if(s.cost===undefined)s.cost=0;if(s.price===undefined)s.price=0;});
   if(!Array.isArray(d.objects))d.objects=[];
   if(!Array.isArray(d.trips))d.trips=[];
   if(!Array.isArray(d.feedback))d.feedback=[];
+  if(!Array.isArray(d.auditLog))d.auditLog=[];
   d.feedback.forEach(f=>{
     if(!Array.isArray(f.messages)){
       f.messages=[{from:f.from,fromName:f.fromName||'',text:f.text||'',ts:f.ts||Date.now()}];
@@ -564,7 +573,7 @@ function migrate(d){
     (t.items||[]).forEach(i=>{
       if(i.taken===undefined)i.taken=(i.qty!==undefined?i.qty:0);
       // used: для старых данных считаем, что использовано = взято (иначе прибыль занизится)
-      if(i.used===undefined)i.used=i.returnable?0:i.taken;
+      if(i.used===undefined)i.used=i.taken; // по умолчанию считаем использованным всё взятое (в т.ч. многоразовое)
       if(i.pripiska===undefined)i.pripiska=0;
       if(i.qty===undefined)i.qty=i.taken; // qty оставляем как алиас взятого для обратной совместимости
     });
@@ -628,6 +637,15 @@ function saveDB(d){
 }
 
 let draft={};
+
+/* Журнал действий для админа: кто, что, когда. Пишем в тот же db, что и остальное —
+   отдельного saveDB не делаем, чтобы не плодить лишние сетевые записи: запись в лог
+   уходит вместе с тем же saveDB(db), который и так вызывается после самого действия. */
+function logAction(action,details){
+  if(!Array.isArray(db.auditLog))db.auditLog=[];
+  db.auditLog.push({ts:Date.now(),email:me?me.email:'',name:me?me.name:'—',action,details:details||''});
+  if(db.auditLog.length>2000)db.auditLog=db.auditLog.slice(-2000); // не даём логу расти бесконечно
+}
 
 /* Безопасная дозапись в общий JSON: перечитываем свежую базу с сервера,
    применяем изменение и сохраняем — чтобы одновременные сообщения не затирали друг друга. */
@@ -734,7 +752,7 @@ function renderNav(){
     cont.innerHTML=items.map(n=>`<div class="nav-item ${n.id===cur?'active':''}" onclick="go('${n.id}')"><svg viewBox="0 0 24 24">${n.icon}</svg>${n.lbl}${(n.id==='s-team'&&un>0)?`<span class="nav-badge">${un>99?'99+':un}</span>`:''}${(n.id==='s-home'&&sUn>0)?`<span class="nav-badge">${sUn>99?'99+':sUn}</span>`:''}</div>`).join('');
   });
 }
-function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary();if(id==='s-object')renderObject(curObjId);if(id==='s-schedule')renderSchedule();if(id==='s-chat')renderChat();if(id==='s-feedback')renderFeedback();if(id==='s-fbthread')renderFbThread();if(id.indexOf('s-new')===0)syncWizardChrome();renderNav();}
+function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary();if(id==='s-object')renderObject(curObjId);if(id==='s-schedule')renderSchedule();if(id==='s-chat')renderChat();if(id==='s-feedback')renderFeedback();if(id==='s-fbthread')renderFbThread();if(id==='s-auditlog')renderAuditLog();if(id.indexOf('s-new')===0)syncWizardChrome();renderNav();}
 
 /* ============ РАСПИСАНИЕ (заготовки на дату по всем объектам) ============ */
 function toggleSchedulePicker(){
@@ -799,7 +817,7 @@ function renderSchedule(){
   if(past.length){html+=`<div class="section-lbl">Дата прошла</div>`+past.map(rowHtml).join('');}
   document.getElementById('schedule-body').innerHTML=html;
 }
-function delPlan(objId,planId){const o=db.objects.find(x=>x.id===objId);if(!o)return;if(!confirm('Удалить заготовку из расписания?'))return;o.plan=(o.plan||[]).filter(p=>p.id!==planId);saveDB(db);renderSchedule();}
+function delPlan(objId,planId){const o=db.objects.find(x=>x.id===objId);if(!o)return;const p=(o.plan||[]).find(x=>x.id===planId);if(!confirm('Удалить заготовку из расписания?'))return;logAction('Удалена заготовка расписания',o.name+(p?' · '+fmtDate(p.date):''));o.plan=(o.plan||[]).filter(p=>p.id!==planId);saveDB(db);renderSchedule();}
 
 /* ============ HOME = OBJECTS ============ */
 
@@ -823,7 +841,7 @@ function renderHome(){
   else{
     list.innerHTML=objs.slice().reverse().map(o=>{
       const trips=objTrips(o.id);const fin=canManage()?calcObject(o):null;
-      const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 10px;font-size:10px">Личный</span>':'<span class="chip chip-blue" style="padding:3px 10px;font-size:10px">Генеральный</span>';
+      const badge=canManage()?(o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 10px;font-size:10px">Личный</span>':'<span class="chip chip-blue" style="padding:3px 10px;font-size:10px">Генеральный</span>'):'';
       const doneTag=o.completed?'<span class="chip chip-off" style="padding:3px 10px;font-size:10px">завершён</span>':'';
       const dates=o.dateStart?fmtDate(o.dateStart)+(o.dateEnd&&o.dateEnd!==o.dateStart?' – '+fmtDate(o.dateEnd):''):'';
       return `<div class="card" style="margin-bottom:9px;${o.completed?'opacity:.6':''}" onclick="openObject(${o.id})">
@@ -841,13 +859,13 @@ function renderHome(){
        <div id="rp-results"></div>
      </div>`+
     (isAdmin()
-      ?`<button class="btn btn-ghost" onclick="openFeedback()">🛠 Заявки пользователей${fbNewCount()?` · <span style="color:var(--ember2)">${fbNewCount()} новых</span>`:''}</button>`
+      ?`<button class="btn btn-ghost" onclick="openFeedback()">🛠 Заявки пользователей${fbNewCount()?` · <span style="color:var(--ember2)">${fbNewCount()} новых</span>`:''}</button><button class="btn btn-ghost" onclick="go('s-auditlog')">🗒 Журнал действий</button>`
       :`<button class="btn btn-ghost" onclick="openFeedback()">✍️ Обратная связь с разработчиком</button>`);
 }
 
 /* --- Создание объекта --- */
 let newObjType='igor';
-function startNewObject(){newObjType='igor';document.getElementById('no-name').value='';document.getElementById('no-note').value='';
+function startNewObject(){newObjType='igor';document.getElementById('no-name').value='';document.getElementById('no-note').value='';setErr('no-name-error','');
   const today=new Date().toISOString().split('T')[0];document.getElementById('no-start').value=today;document.getElementById('no-end').value=today;
   document.getElementById('no-end').min=today;
   document.querySelectorAll('#no-type-chips .chip').forEach(c=>c.className=c.dataset.type==='igor'?'chip chip-em':'chip chip-off');
@@ -867,10 +885,13 @@ function updateObjHint(){const r=db.rates;document.getElementById('no-type-hint'
   ?`Личный проект: ${r.igorEquipPct}% с прибыли оборуд. + ${r.igorConsPct}% с расходников + ${r.igorNetPct}% чистой прибыли.`
   :`Проект генерального: личная доля только ${r.generalNetPct}% чистой прибыли, остальное компании.`;}
 function saveNewObject(){const name=document.getElementById('no-name').value.trim();if(!name){shake('no-name');return}
+  if(db.objects.some(o=>o.name.toLowerCase()===name.toLowerCase())){setErr('no-name-error','Объект с таким названием уже есть');shake('no-name');return}
+  setErr('no-name-error','');
   let ds=document.getElementById('no-start').value,de=document.getElementById('no-end').value;
   if(ds&&de&&de<ds)de=ds; // защита на случай ручного ввода даты, минуя onchange
   const id=db.objects.length?Math.max(...db.objects.map(o=>o.id))+1:1;
   db.objects.push({id,name,type:newObjType,dateStart:ds,dateEnd:de,note:document.getElementById('no-note').value.trim(),planItems:[],completed:false});
+  logAction('Создан объект',name);
   saveDB(db);openObject(id);}
 
 /* --- Детализация объекта --- */
@@ -880,7 +901,7 @@ function renderObject(id){
   document.getElementById('obj-title').textContent=o.name;
   const trips=objTrips(id).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   const fin=canManage()?calcObject(o):null;
-  const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:4px 12px">Личный проект</span>':'<span class="chip chip-blue" style="padding:4px 12px">Проект генерального</span>';
+  const badge=canManage()?(o.type==='igor'?'<span class="chip chip-gold" style="padding:4px 12px">Личный проект</span>':'<span class="chip chip-blue" style="padding:4px 12px">Проект генерального</span>'):'';
   const doneBadge=o.completed?'<span class="chip chip-off" style="padding:4px 12px">завершён</span>':'';
   const dates=o.dateStart?fmtDate(o.dateStart)+(o.dateEnd&&o.dateEnd!==o.dateStart?' – '+fmtDate(o.dateEnd):''):'—';
   let html=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badge}${doneBadge}<span style="font-size:12px;color:var(--txt2)">${dates}</span></div>`;
@@ -917,12 +938,12 @@ function renderObject(id){
   }).join(''):'<div class="empty">Отчётов пока нет</div>';
   html+=`<button class="btn btn-primary" onclick="startReport(${id})">+ Новый отчёт в этот объект</button>`;
   if(canManage())html+=`<button class="btn btn-ghost" onclick="startPlan(${id})">📅 Добавить в расписание</button>`;
-  if(canManage())html+=`<button class="btn btn-ghost" onclick="delObject(${id})">Удалить объект</button>`;
+  if(isAdmin())html+=`<button class="btn btn-ghost" onclick="delObject(${id})">Удалить объект</button>`;
   document.getElementById('object-body').innerHTML=html;
 }
-function editObjType(id){const o=db.objects.find(x=>x.id===id);if(!o)return;o.type=o.type==='igor'?'general':'igor';saveDB(db);renderObject(id);}
-function toggleObjCompleted(id){const o=db.objects.find(x=>x.id===id);if(!o)return;o.completed=!o.completed;saveDB(db);renderObject(id);}
-function delObject(id){const trips=objTrips(id);if(!confirm('Удалить объект'+(trips.length?' и все его отчёты ('+trips.length+')?':'?')))return;db.trips=db.trips.filter(t=>t.objectId!==id);db.objects=db.objects.filter(o=>o.id!==id);saveDB(db);go('s-home');}
+function editObjType(id){const o=db.objects.find(x=>x.id===id);if(!o)return;o.type=o.type==='igor'?'general':'igor';logAction('Изменён тип объекта',o.name+' → '+OBJ_TYPE_LBL[o.type]);saveDB(db);renderObject(id);}
+function toggleObjCompleted(id){const o=db.objects.find(x=>x.id===id);if(!o)return;o.completed=!o.completed;logAction(o.completed?'Объект завершён':'Объект возобновлён',o.name);saveDB(db);renderObject(id);}
+function delObject(id){if(!isAdmin()){alert('Удалять объекты может только админ');return}const o=db.objects.find(x=>x.id===id);const trips=objTrips(id);if(!confirm('Удалить объект'+(trips.length?' и все его отчёты ('+trips.length+')?':'?')))return;logAction('Удалён объект',(o?o.name:'#'+id)+(trips.length?' (вместе с '+trips.length+' отчётами)':''));db.trips=db.trips.filter(t=>t.objectId!==id);db.objects=db.objects.filter(o=>o.id!==id);saveDB(db);go('s-home');}
 
 /* --- Выбор объекта перед новым отчётом: поле с автодополнением ---
    ВАЖНО: используем ВСЕ объекты (db.objects), а не visibleObjects() — иначе сотрудник
@@ -951,7 +972,7 @@ function renderRpResults(){
   const box=document.getElementById('rp-results');
   if(!objs.length){box.innerHTML=`<div class="empty" style="padding:12px 0">${q?'Ничего не найдено':'Активных объектов нет — попробуй ввести название'}</div>`;return;}
   box.innerHTML=objs.map(o=>{
-    const tbadge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 9px;font-size:10px">Личный</span>':'<span class="chip chip-blue" style="padding:3px 9px;font-size:10px">Генеральный</span>';
+    const tbadge=canManage()?(o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 9px;font-size:10px">Личный</span>':'<span class="chip chip-blue" style="padding:3px 9px;font-size:10px">Генеральный</span>'):'';
     const doneTag=o.completed?'<span class="chip chip-off" style="padding:3px 9px;font-size:10px">завершён</span>':'';
     return `<div class="rp-item" onclick="startReport(${o.id})"><span>${esc(o.name)}</span><span style="display:flex;gap:6px;flex-shrink:0">${tbadge}${doneTag}</span></div>`;
   }).join('');
@@ -970,17 +991,18 @@ function openTrip(id){
   let equipRows='';
   t.items.forEach((i,idx)=>{
     const s=db.stock.find(x=>x.name===i.name);const tp=s?s.type:'cons';
+    const usedCtl=(i.returnable?editUse:(editUse&&!i.settled))
+      ? `<input class="qty-input" style="width:52px" type="number" min="0" max="${i.taken||i.qty}" value="${i.used}" onchange="setUsed(${t.id},${idx},this.value)"/>`
+      : `<span class="mono" style="font-weight:700">${i.used}</span>`;
+    const showPrip=mgr||editUse; // видит руководитель или причастный к отчёту (автор)
+    const pripCtl=(i.returnable?editUse:(editUse&&!i.settled))
+      ? `<input class="qty-input" style="width:46px" type="number" min="0" value="${i.pripiska||0}" onchange="setPripiska(${t.id},${idx},this.value)"/>`
+      : (i.pripiska?`<span class="mono" style="color:var(--gold)">${i.pripiska}</span>`:'—');
     if(i.returnable){
       const st=i.returned?`<span class="chip chip-green" style="padding:3px 9px;font-size:10px">возвращено</span>`:`<span class="chip chip-gold" style="padding:3px 9px;font-size:10px">в поле</span>${canReturn(t)?`<button class="eq-btn" style="width:auto;padding:0 10px;font-size:11px;text-transform:uppercase" onclick="returnItem(${t.id},${idx})">вернуть</button>`:''}`;
-      equipRows+=`<div class="eq-row"><span class="eq-name">${esc(i.name)}<span class="tag ${TAG[tp]}">${TYPE_LBL[tp].split(' ')[0]}</span></span><span style="display:flex;align-items:center;gap:8px"><span class="mono" style="font-weight:700;white-space:nowrap">${i.taken||i.qty} ${i.unit||'шт'}</span>${st}</span></div>`;
+      equipRows+=`<div class="eq-row"><div style="flex:1"><div class="eq-name">${esc(i.name)}<span class="tag ${TAG[tp]}">${TYPE_LBL[tp].split(' ')[0]}</span></div>
+        <div class="eq-meta" style="margin-top:3px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">взято: <b class="mono" style="color:var(--txt)">${i.taken||i.qty}</b> · исп.: ${usedCtl}${showPrip?` · <span title="приписка">припис.:</span> ${pripCtl}`:''} · ${st}</div></div></div>`;
     }else{
-      const usedCtl=(editUse&&!i.settled)
-        ? `<input class="qty-input" style="width:52px" type="number" min="0" max="${i.taken}" value="${i.used}" onchange="setUsed(${t.id},${idx},this.value)"/>`
-        : `<span class="mono" style="font-weight:700">${i.used}</span>`;
-      const showPrip=mgr||editUse; // видит руководитель или причастный к отчёту (автор)
-      const pripCtl=(editUse&&!i.settled)
-        ? `<input class="qty-input" style="width:46px" type="number" min="0" value="${i.pripiska||0}" onchange="setPripiska(${t.id},${idx},this.value)"/>`
-        : (i.pripiska?`<span class="mono" style="color:var(--gold)">${i.pripiska}</span>`:'—');
       equipRows+=`<div class="eq-row"><div style="flex:1"><div class="eq-name">${esc(i.name)}<span class="tag ${TAG[tp]}">${TYPE_LBL[tp].split(' ')[0]}</span>${i.settled?'<span class="tag tag-cons">закрыто</span>':''}</div>
         <div class="eq-meta" style="margin-top:3px;display:flex;gap:14px;align-items:center">взято: <b class="mono" style="color:var(--txt)">${i.taken||i.qty}</b> · исп.: ${usedCtl}${showPrip?` · <span title="приписка">припис.:</span> ${pripCtl}`:''}</div></div></div>`;
     }
@@ -1002,10 +1024,10 @@ function openTrip(id){
     <div class="metric-grid"><div class="metric"><div class="metric-lbl">Транспорт</div><div style="font-size:14px;font-weight:600;margin-top:3px">${tr?esc(tr.name):(t.driver?'вод. '+esc(t.driver):'—')}</div></div><div class="metric"><div class="metric-lbl">Километраж</div><div class="metric-val" style="font-size:24px">${t.km}<span style="font-size:13px;color:var(--txt3)"> км</span></div></div></div>
     ${mgr?`<div class="card" onclick="openInvoice(${t.id})" style="border-color:rgba(232,161,60,.4)"><div style="display:flex;justify-content:space-between;align-items:center"><div><div class="lbl" style="margin-bottom:2px">Счёт для заказчика</div><div style="font-size:12px;color:var(--txt2)">открыть · выгрузить</div></div><div class="mono" style="font-size:21px;font-weight:700;color:var(--gold)">${fmtMoney(calcInvoice(t).total)} ₽</div></div></div>`:''}
     <button class="btn btn-ghost" onclick="openObject(${t.objectId})">← К объекту</button>
-    ${mgr?`<button class="btn btn-ghost" onclick="delTrip(${t.id})">Удалить отчёт</button>`:''}`;
+    ${isAdmin()?`<button class="btn btn-ghost" onclick="delTrip(${t.id})">Удалить отчёт</button>`:''}`;
   document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));document.getElementById('s-trip').classList.remove('hidden');
 }
-function delTrip(id){const t=db.trips.find(x=>x.id===id);const oid=t?t.objectId:null;if(!confirm('Удалить отчёт? Списанное со склада не вернётся автоматически.'))return;db.trips=db.trips.filter(t=>t.id!==id);saveDB(db);if(oid!=null)openObject(oid);else go('s-home')}
+function delTrip(id){if(!isAdmin()){alert('Удалять отчёты может только админ');return}const t=db.trips.find(x=>x.id===id);const oid=t?t.objectId:null;if(!confirm('Удалить отчёт? Списанное со склада не вернётся автоматически.'))return;logAction('Удалён отчёт',(t?fmtDate(t.date)+' · '+t.project:'#'+id));db.trips=db.trips.filter(t=>t.id!==id);saveDB(db);if(oid!=null)openObject(oid);else go('s-home')}
 
 /* ============ OVERTIME FORM ============ */
 let otTripId=null;
@@ -1088,6 +1110,7 @@ function syncWizardChrome(){
   const label=isPlan?'Заготовка на дату':'Новый выезд';
   ['wt-new1','wt-new2','wt-new3','wt-new4'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=label;});
   const btn=document.getElementById('wiz-submit-btn');if(btn)btn.textContent=isPlan?'Сохранить в расписание':'Отправить отчёт';
+  const nw=document.getElementById('notes-wrap');if(nw)nw.classList.toggle('hidden',isPlan);
 }
 function pickType(el){draft.type=el.dataset.type;document.querySelectorAll('#type-chips .chip').forEach(c=>c.className='chip chip-off');el.className='chip '+el.dataset.cls}
 function step1(){draft.date=document.getElementById('n-date').value;
@@ -1150,7 +1173,7 @@ function setQty(name,val){const s=db.stock.find(x=>x.name===name);const max=s?av
 function chQty(name,d){const s=db.stock.find(x=>x.name===name);const max=s?availQty(s):9999;const v=Math.max(1,Math.min(max,(draft.items[name]||1)+d));draft.items[name]=v;renderChosen()}
 function rmEquip(name){delete draft.items[name];renderEquipAvail();renderChosen()}
 function renderSummary(){const items=Object.entries(draft.items);const tr=(db.transport||[]).find(x=>x.id==draft.transportId);document.getElementById('summary-card').innerHTML=`<div class="summary-line"><b>${esc(draft.project)}</b> · ${fmtDate(draft.date)} · ${draft.type}</div><div class="summary-line">${draft.crew.join(', ')}${draft.driver?' (вод. '+draft.driver+')':''} · ${draft.km} км${tr?' · '+esc(tr.name):''}</div><div class="summary-line">${items.length?items.map(([n,q])=>esc(n)+' ×'+q).join(', '):'<span style="color:var(--txt3)">оборудование не выбрано</span>'}</div>`}
-function submitTrip(){draft.notes=document.getElementById('n-notes').value;
+function submitTrip(){draft.notes=draft.mode==='plan'?'':document.getElementById('n-notes').value;
   if(draft.mode==='plan'){saveDraftAsPlan();return}
   Object.entries(draft.items).forEach(([name,q])=>{const s=db.stock.find(x=>x.name===name);if(s&&!s.returnable)s.qty=Math.max(0,s.qty-q)});
   const nextId=db.trips.length?Math.max(...db.trips.map(t=>t.id))+1:1;
@@ -1158,16 +1181,18 @@ function submitTrip(){draft.notes=document.getElementById('n-notes').value;
     crew:[...draft.crew],driver:draft.driver,km:draft.km,transportId:draft.transportId||null,driverRate:draft.driverRate||0,
     overtime:[],notes:draft.notes,author:me?me.name:'',
     items:Object.entries(draft.items).map(([name,q])=>{const s=db.stock.find(x=>x.name===name);
-      return{name,qty:q,taken:q,used:(s&&s.returnable)?0:q,pripiska:0,unit:s?s.unit:'шт',returnable:!!(s&&s.returnable),returned:false,settled:false}})});
+      return{name,qty:q,taken:q,used:q,pripiska:0,unit:s?s.unit:'шт',returnable:!!(s&&s.returnable),returned:false,settled:false}})});
   // расширяем даты объекта
   const obj=db.objects.find(o=>o.id===draft.objectId);
   if(obj){if(!obj.dateStart||draft.date<obj.dateStart)obj.dateStart=draft.date;if(!obj.dateEnd||draft.date>obj.dateEnd)obj.dateEnd=draft.date;}
+  logAction('Создан отчёт',draft.project+' · '+fmtDate(draft.date));
   saveDB(db);go('s-success')}
 /* Сохранение заготовки в расписание объекта (без списания склада, без выезда) */
 function saveDraftAsPlan(){
   const o=db.objects.find(x=>x.id===draft.objectId);if(!o){go('s-home');return}
   const pid=o.plan.length?Math.max(...o.plan.map(p=>p.id))+1:1;
-  o.plan.push({id:pid,date:draft.date,crew:[...draft.crew],items:{...draft.items},note:draft.notes||'',ts:Date.now()});
+  o.plan.push({id:pid,date:draft.date,crew:[...draft.crew],items:{...draft.items},note:'',ts:Date.now()});
+  logAction('Добавлена заготовка в расписание',o.name+' · '+fmtDate(draft.date));
   saveDB(db);
   showToast('Добавлено в расписание','ok',2200);
   go('s-schedule');
@@ -1181,11 +1206,13 @@ function closeTrip(id){const t=db.trips.find(x=>x.id===id);if(!t)return;
   if(!confirm('Закрыть отчёт? Неиспользованное вернётся на склад, дальше менять расход/приписку/переработку сможет только руководитель.'))return;
   t.items.forEach(i=>{if(!i.returnable&&!i.settled){const back=Math.max(0,(i.taken||0)-(i.used||0));if(back>0){const s=db.stock.find(x=>x.name===i.name);if(s)s.qty+=back;}i.settled=true;}});
   t.closed=true;
+  logAction('Закрыт отчёт',fmtDate(t.date)+' · '+t.project);
   saveDB(db);openTrip(id)}
 function reopenTrip(id){const t=db.trips.find(x=>x.id===id);if(!t||!canManage())return;
   if(!confirm('Открыть отчёт заново? Если поменяешь использовано/приписку — проверь остатки склада вручную, автоматический возврат уже произошёл при закрытии.'))return;
   t.closed=false;
   t.items.forEach(i=>{if(!i.returnable)i.settled=false;});
+  logAction('Открыт отчёт заново',fmtDate(t.date)+' · '+t.project);
   saveDB(db);openTrip(id)}
 function hasUnsettled(t){return (t.items||[]).some(i=>!i.returnable&&!i.settled)}
 
@@ -1239,7 +1266,7 @@ function showHolders(name){
   }
 }
 function stockQty(i,d){db.stock[i].qty=Math.max(0,db.stock[i].qty+d);saveDB(db);renderStock()}
-function delStock(i){if(!confirm('Удалить «'+db.stock[i].name+'» со склада?'))return;db.stock.splice(i,1);saveDB(db);renderStock()}
+function delStock(i){const nm=db.stock[i]&&db.stock[i].name;if(!confirm('Удалить «'+nm+'» со склада?'))return;logAction('Удалена позиция склада',nm);db.stock.splice(i,1);saveDB(db);renderStock()}
 let editingStockIdx=null;
 function openAddStock(){
   editingStockIdx=null;
@@ -1271,8 +1298,10 @@ function saveStock(){
   const name=document.getElementById('as-name').value.trim();
   if(!name){shake('as-name');return}
   const data={name,type:document.getElementById('as-type').value,qty:parseInt(document.getElementById('as-qty').value)||0,unit:document.getElementById('as-unit').value.trim()||'шт',min:parseInt(document.getElementById('as-min').value)||0,price:parseInt(document.getElementById('as-price').value)||0,cost:parseInt(document.getElementById('as-cost').value)||0,note:document.getElementById('as-note').value.trim(),returnable:document.getElementById('as-ret').value==='1'};
+  const isNew=!(editingStockIdx!=null&&db.stock[editingStockIdx]);
   if(editingStockIdx!=null&&db.stock[editingStockIdx]){Object.assign(db.stock[editingStockIdx],data);}
   else{db.stock.push(data);}
+  logAction(isNew?'Добавлена позиция склада':'Изменена позиция склада',name);
   saveDB(db);
   editingStockIdx=null;
   go('s-stock');
@@ -1298,10 +1327,10 @@ function renderTeam(){
       <div style="display:flex;align-items:center;gap:11px">
         <div class="avatar" style="width:40px;height:40px;font-size:15px;background:${e.bg};color:${e.c}">${ini(e.name)}</div>
         <div style="flex:1"><div style="font-size:16px;font-weight:500">${esc(e.name)}${isMe?' <span style="font-size:11px;color:var(--txt3)">(вы)</span>':''}</div>
-          <div style="font-size:12px;color:var(--txt2)">${esc(e.role)}${e.phone?` · <span class="mono" style="color:var(--txt3)">${esc(e.phone)}</span>`:''}</div></div>
+          <div style="font-size:12px;color:var(--txt2)">${esc(e.role)}${e.phone?` · <span class="mono" style="color:var(--txt3)">${esc(e.phone)}</span>`:''}${canManage()?` · ЗП: <span class="mono" style="color:var(--txt3)">${fmtMoney(e.wage||0)} ₽</span>`:''}</div></div>
         <span class="login-role ${PERM_CLS[e.perm]}">${PERM_LBL[e.perm]}</span>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${callBtn}${msgBtn}${canManage()&&e.phone?`<span class="chip chip-off" onclick="setPhone(${i})" style="padding:6px 12px">изменить тел.</span>`:''}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${callBtn}${msgBtn}${canManage()&&e.phone?`<span class="chip chip-off" onclick="setPhone(${i})" style="padding:6px 12px">изменить тел.</span>`:''}${canManage()?`<span class="chip chip-off" onclick="setWage(${i})" style="padding:6px 12px">изменить ЗП</span>`:''}</div>
       <div class="sep" style="margin:10px 0"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--txt2)">
         <span>Выездов: <b style="color:var(--txt)" class="mono">${mine.length}</b> · Пробег: <b style="color:var(--txt)" class="mono">${km} км</b></span>
@@ -1312,6 +1341,7 @@ function renderTeam(){
   document.getElementById('team-list').innerHTML=html;
 }
 function setPhone(i){const e=db.employees[i];const v=prompt('Телефон для «'+e.name+'» (в формате +7...):',e.phone||'');if(v===null)return;e.phone=v.trim();saveDB(db);renderTeam();}
+function setWage(i){const e=db.employees[i];const v=prompt('ЗП за выезд для «'+e.name+'», ₽:',e.wage||0);if(v===null)return;const n=parseInt(v);if(isNaN(n)||n<0)return;e.wage=n;logAction('Изменена ЗП сотрудника',e.name+' → '+n+' ₽');saveDB(db);renderTeam();}
 function delEmp(i){
   const emp=db.employees[i];
   if(me&&emp.email===me.email){showToast('Нельзя удалить самого себя','err',3000);return;}
@@ -1323,9 +1353,11 @@ async function saveEmp(){
   const rawLogin=(document.getElementById('ae-email').value||'').trim();
   const email=toEmail(rawLogin);
   const pass=(document.getElementById('ae-pass').value||'').trim();
+  const wage=parseInt(document.getElementById('ae-wage').value);
   if(!name){shake('ae-name');return}
   if(!email){shake('ae-email');return}
   if(pass.length<6){setErr('ae-error','Пароль — минимум 6 символов');return}
+  if(isNaN(wage)||wage<=0){setErr('ae-error','Укажи ЗП — обязательное поле');shake('ae-wage');return}
   if(db.employees.find(e=>e.email===email)){setErr('ae-error','Сотрудник с таким логином уже есть');return}
   const btn=document.getElementById('ae-btn');btn.disabled=true;btn.textContent='Создаём...';
   setErr('ae-error','');document.getElementById('ae-success').style.display='none';
@@ -1337,12 +1369,14 @@ async function saveEmp(){
   }
   const palette=[['#ff7d4d','rgba(255,87,34,.18)'],['#4da3ff','rgba(77,163,255,.18)'],['#e8a13c','rgba(232,161,60,.18)'],['#5fc77f','rgba(95,199,127,.18)'],['#c98bff','rgba(170,100,255,.18)']];
   const p=palette[db.employees.length%palette.length];
-  db.employees.push({name,role:document.getElementById('ae-role').value.trim()||'Пиротехник',perm:document.getElementById('ae-perm').value,email,phone:(document.getElementById('ae-phone').value||'').trim(),c:p[0],bg:p[1]});
+  db.employees.push({name,role:document.getElementById('ae-role').value.trim()||'Пиротехник',perm:document.getElementById('ae-perm').value,email,wage,phone:(document.getElementById('ae-phone').value||'').trim(),c:p[0],bg:p[1]});
+  logAction('Добавлен сотрудник',name+' ('+toLogin(email)+')');
   saveDB(db);
   document.getElementById('ae-name').value='';
   document.getElementById('ae-email').value='';
   document.getElementById('ae-pass').value='';
   document.getElementById('ae-phone').value='';
+  document.getElementById('ae-wage').value='';
   document.getElementById('ae-role').value='Пиротехник';
   btn.disabled=false;btn.textContent='Добавить сотрудника';
   const ok=document.getElementById('ae-success');
@@ -1417,6 +1451,22 @@ async function sendChat(){
 /* ============ FEEDBACK (заявки — полноценная переписка с админом) ============ */
 const FB_STATUS={new:{l:'Новая',c:'chip-em'},progress:{l:'В работе',c:'chip-gold'},done:{l:'Починено',c:'chip-green'}};
 let curFbId=null;
+/* ============ ЖУРНАЛ ДЕЙСТВИЙ (только админ) ============ */
+function renderAuditLog(){
+  if(!isAdmin()){go('s-home');return}
+  const log=(db.auditLog||[]).slice().reverse().slice(0,300); // новые сверху, показываем последние 300
+  let html=`<div class="note-box note-blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>Кто и что делал в приложении. Показаны последние ${log.length} из ${(db.auditLog||[]).length} записей.</span></div>`;
+  if(!log.length){html+='<div class="empty">Пока пусто</div>';}
+  else html+=`<div class="card flat" style="padding:2px 15px">${log.map(e=>{
+    const d=new Date(e.ts);const dt=('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b style="font-size:13px">${esc(e.action)}</b><span class="mono" style="font-size:11px;color:var(--txt3);white-space:nowrap">${dt}</span></div>
+      <div style="font-size:12px;color:var(--txt2);margin-top:2px">${esc(e.name||'—')} <span style="color:var(--txt3)">(${esc(e.email||'')})</span>${e.details?' · '+esc(e.details):''}</div>
+    </div>`;
+  }).join('')}</div>`;
+  document.getElementById('auditlog-body').innerHTML=html;
+}
+
 function openFeedback(){go('s-feedback');}
 function fbList(){return isAdmin()?(db.feedback||[]).slice():(db.feedback||[]).filter(f=>f.from===me.email)}
 function fbNewCount(){return (db.feedback||[]).reduce((n,f)=>n+fbUnread(f),0)}
@@ -1516,7 +1566,7 @@ function calcInvoice(t){
 function calcExpense(t){
   let cons=0;(t.items||[]).forEach(i=>{const s=db.stock.find(x=>x.name===i.name);if(s&&!s.returnable)cons+=(s.cost||0)*costQty(i)});
   const transport=transportCost(t);
-  const wage=(db.rates.wage||0)*(t.crew?t.crew.length:0);
+  const wage=(t.crew||[]).reduce((sum,name)=>{const e=db.employees.find(x=>x.name===name);return sum+(e&&e.wage?e.wage:0);},0);
   const overtime=overtimeCost(t);
   return {cons,transport,wage,overtime,total:cons+transport+wage+overtime};
 }
@@ -1562,8 +1612,7 @@ function renderPrice(){
       <div style="display:flex;align-items:center;gap:6px"><input class="qty-input" style="width:96px" type="number" min="0" value="${db.rates.km||0}" onchange="setRate('km',this.value)"/><span style="color:var(--txt2)">₽</span></div></div></div>`;
 
   html+=`<div class="section-lbl" style="margin-top:14px">Себестоимость (наши расходы)</div>
-    <div class="card flat"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="eq-name">Зарплата</div><div class="eq-meta">за человека / выезд</div></div>
-      <div style="display:flex;align-items:center;gap:6px"><input class="qty-input" style="width:96px" type="number" min="0" value="${db.rates.wage||0}" onchange="setRate('wage',this.value)"/><span style="color:var(--txt2)">₽</span></div></div></div>
+    <div class="note-box note-blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>ЗП у каждого сотрудника своя — задаётся в карточке в разделе «Команда».</span></div>
     <div class="card flat" style="margin-top:8px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="eq-name">Переработка</div><div class="eq-meta">за час</div></div>
       <div style="display:flex;align-items:center;gap:6px"><input class="qty-input" style="width:96px" type="number" min="0" value="${db.rates.overtime||0}" onchange="setRate('overtime',this.value)"/><span style="color:var(--txt2)">₽</span></div></div></div>
     <div class="card flat" style="margin-top:8px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="eq-name">Топливо (свой транспорт)</div><div class="eq-meta">наш расход за км</div></div>
@@ -1736,6 +1785,7 @@ function importStockXlsx(input){
         if(existing){Object.assign(existing,data);updated++;}
         else{db.stock.push(data);added++;}
       });
+      logAction('Импорт склада из Excel','добавлено '+added+', обновлено '+updated);
       saveDB(db);
       status.innerHTML=`<div class="note-box note-blue"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><span>Готово: добавлено ${added}, обновлено ${updated}${skipped?`, пропущено без названия ${skipped}`:''}.</span></div>`;
       input.value='';
