@@ -215,7 +215,7 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 
 <!-- ===== NEW STEP 1 ===== -->
 <div class="screen hidden" id="s-new1">
-  <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Отмена</span><span class="topbar-title" style="font-size:16px">Новый выезд</span><span class="topbar-sub">1 / 4</span></div>
+  <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Отмена</span><span class="topbar-title" id="wt-new1" style="font-size:16px">Новый выезд</span><span class="topbar-sub">1 / 4</span></div>
   <div class="scroll">
     <div class="step-dots"><div class="dot active"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
     <div><div class="lbl">Объект</div><div class="card flat" id="n-objname" style="font-size:16px;font-weight:500"></div></div>
@@ -227,7 +227,7 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 
 <!-- ===== NEW STEP 2: crew ===== -->
 <div class="screen hidden" id="s-new2">
-  <div class="topbar"><span class="back-btn" onclick="go('s-new1')">← Назад</span><span class="topbar-title" style="font-size:16px">Новый выезд</span><span class="topbar-sub">2 / 4</span></div>
+  <div class="topbar"><span class="back-btn" onclick="go('s-new1')">← Назад</span><span class="topbar-title" id="wt-new2" style="font-size:16px">Новый выезд</span><span class="topbar-sub">2 / 4</span></div>
   <div class="scroll">
     <div class="step-dots"><div class="dot"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
     <div>
@@ -239,7 +239,7 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
     <div><div class="lbl">Транспорт</div><select class="fval" id="n-transport"><option value="">— не указан —</option></select></div>
     <div class="metric-grid">
       <div><div class="lbl">Километраж</div><input class="fval mono" id="n-km" type="number" placeholder="0" min="0"/></div>
-      <div><div class="lbl">Ставка водителя, ₽</div><input class="fval mono" id="n-driverrate" type="number" placeholder="0" min="0"/></div>
+      <div id="driverrate-wrap"><div class="lbl">Ставка водителя, ₽</div><input class="fval mono" id="n-driverrate" type="number" placeholder="0" min="0"/></div>
     </div>
     <button class="btn btn-primary" onclick="step2()">Далее →</button>
   </div>
@@ -247,7 +247,7 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 
 <!-- ===== NEW STEP 3: equipment ===== -->
 <div class="screen hidden" id="s-new3">
-  <div class="topbar"><span class="back-btn" onclick="go('s-new2')">← Назад</span><span class="topbar-title" style="font-size:16px">Новый выезд</span><span class="topbar-sub">3 / 4</span></div>
+  <div class="topbar"><span class="back-btn" onclick="go('s-new2')">← Назад</span><span class="topbar-title" id="wt-new3" style="font-size:16px">Новый выезд</span><span class="topbar-sub">3 / 4</span></div>
   <div class="scroll">
     <div class="step-dots"><div class="dot"></div><div class="dot"></div><div class="dot active"></div><div class="dot"></div></div>
     <div>
@@ -263,13 +263,12 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 
 <!-- ===== NEW STEP 4 ===== -->
 <div class="screen hidden" id="s-new4">
-  <div class="topbar"><span class="back-btn" onclick="go('s-new3')">← Назад</span><span class="topbar-title" style="font-size:16px">Новый выезд</span><span class="topbar-sub">4 / 4</span></div>
+  <div class="topbar"><span class="back-btn" onclick="go('s-new3')">← Назад</span><span class="topbar-title" id="wt-new4" style="font-size:16px">Новый выезд</span><span class="topbar-sub">4 / 4</span></div>
   <div class="scroll">
     <div class="step-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot active"></div></div>
     <div><div class="lbl">Примечания / отклонения</div><textarea class="fval" id="n-notes" placeholder="Что нестандартного: приписали, сломали, достали..."></textarea></div>
-    <div class="note-box note-gold"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>Примечания видит руководитель — пишем честно</span></div>
     <div><div class="lbl">Проверь перед отправкой</div><div class="card flat" id="summary-card"></div></div>
-    <button class="btn btn-primary" onclick="submitTrip()">Отправить отчёт</button>
+    <button class="btn btn-primary" id="wiz-submit-btn" onclick="submitTrip()">Отправить отчёт</button>
   </div>
 </div>
 
@@ -290,9 +289,24 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
   <div class="navbar" id="nav-stock"></div>
 </div>
 
-<!-- ===== ADD STOCK (manager) ===== -->
+<!-- ===== STOCK EXCEL IMPORT/EXPORT (manager) ===== -->
+<div class="screen hidden" id="s-stockxlsx">
+  <div class="topbar"><span class="back-btn" onclick="go('s-stock')">← Назад</span><span class="topbar-title" style="font-size:16px">Импорт / экспорт склада</span></div>
+  <div class="scroll">
+    <div class="note-box note-blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>Удобно для первоначального заполнения: скачай файл, заполни/поправь в Excel, загрузи обратно. Позиции с совпадающим названием обновятся, новые — добавятся.</span></div>
+    <div class="lbl" style="margin-top:6px">Шаг 1 — скачать</div>
+    <button class="btn btn-primary" onclick="exportStockTemplateXlsx()">⬇ Скачать склад (шаблон для правки)</button>
+    <div class="lbl" style="margin-top:14px">Шаг 2 — загрузить обратно</div>
+    <input class="fval" id="stock-import-file" type="file" accept=".xlsx,.xls" onchange="importStockXlsx(this)"/>
+    <div id="stock-import-status" style="margin-top:10px"></div>
+    <div class="section-lbl" style="margin-top:14px">Колонки в файле</div>
+    <div class="card flat" style="font-size:12px;color:var(--txt2);line-height:1.9">Позиция · Категория · На складе · Ед. · Мин. остаток · Многоразовое (да/нет) · Цена заказчику, ₽ · Закупка, ₽ · Заметка</div>
+  </div>
+</div>
+
+<!-- ===== ADD/EDIT STOCK (manager) ===== -->
 <div class="screen hidden" id="s-addstock">
-  <div class="topbar"><span class="back-btn" onclick="go('s-stock')">← Назад</span><span class="topbar-title" style="font-size:16px">Новая позиция склада</span></div>
+  <div class="topbar"><span class="back-btn" onclick="go('s-stock')">← Назад</span><span class="topbar-title" id="as-title" style="font-size:16px">Новая позиция склада</span></div>
   <div class="scroll">
     <div><div class="lbl">Название</div><input class="fval" id="as-name" placeholder="Например: Фитиль пиротехнический"/></div>
     <div><div class="lbl">Категория</div><select class="fval" id="as-type">
@@ -310,8 +324,12 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
       <option value="0">Списывается — расходник / пиротехника</option>
       <option value="1">Возвращается на склад — многоразовое</option>
     </select></div>
-    <div><div class="lbl">Цена для заказчика (₽ за единицу)</div><input class="fval mono" id="as-price" type="number" placeholder="0" min="0"/></div>
-    <button class="btn btn-primary" onclick="saveStock()">Добавить на склад</button>
+    <div class="metric-grid">
+      <div><div class="lbl">Цена заказчику, ₽ / ед.</div><input class="fval mono" id="as-price" type="number" placeholder="0" min="0"/></div>
+      <div><div class="lbl">Закупка, ₽ / ед.</div><input class="fval mono" id="as-cost" type="number" placeholder="0" min="0"/></div>
+    </div>
+    <div><div class="lbl">Заметка / уточнение (необязательно)</div><textarea class="fval" id="as-note" placeholder="Артикул, поставщик, особенности хранения..."></textarea></div>
+    <button class="btn btn-primary" id="as-submit" onclick="saveStock()">Добавить на склад</button>
   </div>
 </div>
 
@@ -380,6 +398,19 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
   <div class="scroll" id="object-body"></div>
 </div>
 
+<!-- ===== SCHEDULE (расписание руководителя) ===== -->
+<div class="screen hidden" id="s-schedule">
+  <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Назад</span><span class="topbar-title" style="font-size:16px">Расписание</span></div>
+  <div class="scroll">
+    <button class="btn btn-primary" onclick="toggleSchedulePicker()">+ Добавить в расписание</button>
+    <div class="rp-panel hidden" id="sp-panel">
+      <input class="fval" id="sp-search" placeholder="Введите название объекта..." oninput="renderSpResults()" autocomplete="off"/>
+      <div id="sp-results"></div>
+    </div>
+    <div id="schedule-body"></div>
+  </div>
+</div>
+
 <!-- ===== NEW OBJECT ===== -->
 <div class="screen hidden" id="s-newobj">
   <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Отмена</span><span class="topbar-title" style="font-size:16px">Новый объект</span></div>
@@ -391,11 +422,11 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
     </div>
     <div><div class="lbl">Чей проект (влияет на распределение прибыли)</div>
       <div class="crew-grid" id="no-type-chips">
-        <span class="chip chip-em" data-type="igor" onclick="pickObjType(this)">Проект Игоря</span>
+        <span class="chip chip-em" data-type="igor" onclick="pickObjType(this)">Личный проект</span>
         <span class="chip chip-off" data-type="general" onclick="pickObjType(this)">Проект генерального</span>
       </div>
     </div>
-    <div class="note-box note-gold"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span id="no-type-hint">Проект Игоря: 50% с прибыли оборуд. + 30% с расходников + 10% чистой прибыли.</span></div>
+    <div class="note-box note-gold"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span id="no-type-hint">Личный проект: 50% с прибыли оборуд. + 30% с расходников + 10% чистой прибыли.</span></div>
     <div><div class="lbl">Заметка (необязательно)</div><textarea class="fval" id="no-note" placeholder="Заказчик, площадка, контакты..."></textarea></div>
     <button class="btn btn-primary" onclick="saveNewObject()">Создать объект</button>
   </div>
@@ -509,6 +540,8 @@ function migrate(d){
   for(const k in DEFAULT_RATES){if(d.rates[k]===undefined)d.rates[k]=DEFAULT_RATES[k];}
   if(!Array.isArray(d.workRates))d.workRates=[{name:'Работа пиротехника (смена)',amount:6000}];
   if(!Array.isArray(d.transport))d.transport=[];
+  if(!Array.isArray(d.stock))d.stock=[];
+  d.stock.forEach(s=>{if(s.note===undefined)s.note='';if(s.cost===undefined)s.cost=0;if(s.price===undefined)s.price=0;});
   if(!Array.isArray(d.objects))d.objects=[];
   if(!Array.isArray(d.trips))d.trips=[];
   if(!Array.isArray(d.feedback))d.feedback=[];
@@ -535,6 +568,7 @@ function migrate(d){
     if(!Array.isArray(t.overtime))t.overtime=[];
     if(t.transportId===undefined)t.transportId=null;
     if(t.driverRate===undefined)t.driverRate=0;
+    if(t.closed===undefined)t.closed=false;
   });
 
   // 2) Создание объектов из существующих выездов (по названию проекта)
@@ -557,8 +591,8 @@ function migrate(d){
       t.objectId=o.id;
     }
   });
-  // 4) Статус «завершён» — по умолчанию все объекты активны
-  d.objects.forEach(o=>{if(o.completed===undefined)o.completed=false;});
+  // 4) Статус «завершён» — по умолчанию все объекты активны; расписание (заготовки на дату)
+  d.objects.forEach(o=>{if(o.completed===undefined)o.completed=false;if(!Array.isArray(o.plan))o.plan=[];});
   return d;
 }
 
@@ -697,9 +731,60 @@ function renderNav(){
     cont.innerHTML=items.map(n=>`<div class="nav-item ${n.id===cur?'active':''}" onclick="go('${n.id}')"><svg viewBox="0 0 24 24">${n.icon}</svg>${n.lbl}${(n.id==='s-team'&&un>0)?`<span class="nav-badge">${un>99?'99+':un}</span>`:''}</div>`).join('');
   });
 }
-function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary();if(id==='s-object')renderObject(curObjId);if(id==='s-chat')renderChat();if(id==='s-feedback')renderFeedback();if(id==='s-fbthread')renderFbThread();renderNav();}
+function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary();if(id==='s-object')renderObject(curObjId);if(id==='s-schedule')renderSchedule();if(id==='s-chat')renderChat();if(id==='s-feedback')renderFeedback();if(id==='s-fbthread')renderFbThread();if(id.indexOf('s-new')===0)syncWizardChrome();renderNav();}
+
+/* ============ РАСПИСАНИЕ (заготовки на дату по всем объектам) ============ */
+function toggleSchedulePicker(){
+  const objs=db.objects.filter(o=>!o.completed);
+  if(!objs.length){alert('Сначала создай активный объект');return}
+  if(objs.length===1){startPlan(objs[0].id);return}
+  const panel=document.getElementById('sp-panel');if(!panel)return;
+  const willOpen=panel.classList.contains('hidden');
+  if(!willOpen){panel.classList.add('hidden');return}
+  const inp=document.getElementById('sp-search');inp.value='';
+  panel.classList.remove('hidden');renderSpResults();
+  setTimeout(()=>inp.focus(),50);
+}
+function renderSpResults(){
+  const q=(document.getElementById('sp-search').value||'').toLowerCase().trim();
+  let objs=db.objects.filter(o=>!o.completed);
+  if(q)objs=objs.filter(o=>o.name.toLowerCase().includes(q));
+  objs=objs.slice().reverse();
+  const box=document.getElementById('sp-results');
+  if(!objs.length){box.innerHTML=`<div class="empty" style="padding:12px 0">Ничего не найдено</div>`;return}
+  box.innerHTML=objs.map(o=>`<div class="rp-item" onclick="startPlan(${o.id})"><span>${esc(o.name)}</span></div>`).join('');
+}
+function allPlanEntries(){
+  const out=[];
+  db.objects.forEach(o=>(o.plan||[]).forEach(p=>out.push({...p,objId:o.id,objName:o.name,objCompleted:o.completed})));
+  return out;
+}
+function renderSchedule(){
+  const today=new Date().toISOString().split('T')[0];
+  const all=allPlanEntries().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const upcoming=all.filter(p=>p.date>=today),past=all.filter(p=>p.date<today);
+  const rowHtml=p=>{
+    const items=Object.entries(p.items||{});
+    const itemsStr=items.length?items.map(([n,q])=>esc(n)+' ×'+q).join(', '):'—';
+    return `<div class="card flat" style="margin-bottom:9px">
+      <div class="card-top"><div><div class="card-name" style="font-size:15px">${fmtDate(p.date)}</div><div class="card-sub">${esc(p.objName)}${p.objCompleted?' <span style="color:var(--txt3)">(завершён)</span>':''}</div></div></div>
+      <div class="eq-meta" style="margin-top:6px">Бригада: ${p.crew&&p.crew.length?esc(p.crew.join(', ')):'не назначена'}</div>
+      <div class="eq-meta" style="margin-top:3px">Оборудование: ${itemsStr}</div>
+      ${p.note?`<div class="eq-meta" style="margin-top:3px">Заметка: ${esc(p.note)}</div>`:''}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-primary" style="flex:1;padding:10px" onclick="startReportFromPlan(${p.objId},${p.id})">Превратить в отчёт</button>
+        <button class="eq-btn del" onclick="delPlan(${p.objId},${p.id})">🗑</button>
+      </div></div>`;
+  };
+  let html=`<div class="section-lbl">Предстоящие</div>`;
+  html+=upcoming.length?upcoming.map(rowHtml).join(''):'<div class="empty">Пока ничего не запланировано</div>';
+  if(past.length){html+=`<div class="section-lbl">Дата прошла</div>`+past.map(rowHtml).join('');}
+  document.getElementById('schedule-body').innerHTML=html;
+}
+function delPlan(objId,planId){const o=db.objects.find(x=>x.id===objId);if(!o)return;if(!confirm('Удалить заготовку из расписания?'))return;o.plan=(o.plan||[]).filter(p=>p.id!==planId);saveDB(db);renderSchedule();}
 
 /* ============ HOME = OBJECTS ============ */
+
 let curObjId=null;
 function visibleTrips(){if(canManage())return db.trips;return db.trips.filter(t=>t.author===me.name)}
 function visibleObjects(){
@@ -708,7 +793,7 @@ function visibleObjects(){
   const mine=new Set(db.trips.filter(t=>t.author===me.name).map(t=>t.objectId));
   return db.objects.filter(o=>mine.has(o.id));
 }
-const OBJ_TYPE_LBL={igor:'Проект Игоря',general:'Проект генерального'};
+const OBJ_TYPE_LBL={igor:'Личный проект',general:'Проект генерального'};
 function renderHome(){
   const objs=visibleObjects();
   document.getElementById('m-trips').textContent=visibleTrips().length;
@@ -720,17 +805,18 @@ function renderHome(){
   else{
     list.innerHTML=objs.slice().reverse().map(o=>{
       const trips=objTrips(o.id);const fin=canManage()?calcObject(o):null;
-      const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 10px;font-size:10px">Игорь</span>':'<span class="chip chip-blue" style="padding:3px 10px;font-size:10px">Генеральный</span>';
+      const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 10px;font-size:10px">Личный</span>':'<span class="chip chip-blue" style="padding:3px 10px;font-size:10px">Генеральный</span>';
       const doneTag=o.completed?'<span class="chip chip-off" style="padding:3px 10px;font-size:10px">завершён</span>':'';
       const dates=o.dateStart?fmtDate(o.dateStart)+(o.dateEnd&&o.dateEnd!==o.dateStart?' – '+fmtDate(o.dateEnd):''):'';
       return `<div class="card" style="margin-bottom:9px;${o.completed?'opacity:.6':''}" onclick="openObject(${o.id})">
         <div class="card-top"><div><div class="card-name">${esc(o.name)}</div><div class="card-sub">${dates} · отчётов: ${trips.length}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${badge}${doneTag}</div></div>
-        ${fin?`<div class="sep" style="margin:9px 0"></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--txt2)"><span>Прибыль: <b class="mono" style="color:${fin.profit>=0?'var(--green)':'var(--red)'}">${fmtMoney(fin.profit)} ₽</b></span><span>Игорь: <b class="mono" style="color:var(--gold)">${fmtMoney(fin.igor)} ₽</b></span></div>`:''}
+        ${fin?`<div class="sep" style="margin:9px 0"></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--txt2)"><span>Прибыль: <b class="mono" style="color:${fin.profit>=0?'var(--green)':'var(--red)'}">${fmtMoney(fin.profit)} ₽</b></span><span>Личная доля: <b class="mono" style="color:var(--gold)">${fmtMoney(fin.igor)} ₽</b></span></div>`:''}
       </div>`;
     }).join('');
   }
   document.getElementById('home-actions').innerHTML=
     (canManage()?`<button class="btn btn-primary" onclick="startNewObject()">+ Новый объект</button>`:'')+
+    (canManage()?`<button class="btn btn-ghost" onclick="go('s-schedule')">📅 Расписание</button>`:'')+
     `<button class="btn ${canManage()?'btn-ghost':'btn-primary'}" onclick="toggleReportPicker()">+ Новый отчёт (выезд)</button>`+
     `<div class="rp-panel hidden" id="rp-panel">
        <input class="fval" id="rp-search" placeholder="Введите название объекта..." oninput="renderRpResults()" autocomplete="off"/>
@@ -760,8 +846,8 @@ function onObjEndChange(){
 }
 function pickObjType(el){newObjType=el.dataset.type;document.querySelectorAll('#no-type-chips .chip').forEach(c=>c.className='chip chip-off');el.className='chip '+(newObjType==='igor'?'chip-em':'chip-blue');updateObjHint();}
 function updateObjHint(){const r=db.rates;document.getElementById('no-type-hint').textContent=newObjType==='igor'
-  ?`Проект Игоря: ${r.igorEquipPct}% с прибыли оборуд. + ${r.igorConsPct}% с расходников + ${r.igorNetPct}% чистой прибыли.`
-  :`Проект генерального: Игорю только ${r.generalNetPct}% чистой прибыли, остальное компании.`;}
+  ?`Личный проект: ${r.igorEquipPct}% с прибыли оборуд. + ${r.igorConsPct}% с расходников + ${r.igorNetPct}% чистой прибыли.`
+  :`Проект генерального: личная доля только ${r.generalNetPct}% чистой прибыли, остальное компании.`;}
 function saveNewObject(){const name=document.getElementById('no-name').value.trim();if(!name){shake('no-name');return}
   let ds=document.getElementById('no-start').value,de=document.getElementById('no-end').value;
   if(ds&&de&&de<ds)de=ds; // защита на случай ручного ввода даты, минуя onchange
@@ -776,7 +862,7 @@ function renderObject(id){
   document.getElementById('obj-title').textContent=o.name;
   const trips=objTrips(id).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   const fin=canManage()?calcObject(o):null;
-  const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:4px 12px">Проект Игоря</span>':'<span class="chip chip-blue" style="padding:4px 12px">Проект генерального</span>';
+  const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:4px 12px">Личный проект</span>':'<span class="chip chip-blue" style="padding:4px 12px">Проект генерального</span>';
   const doneBadge=o.completed?'<span class="chip chip-off" style="padding:4px 12px">завершён</span>':'';
   const dates=o.dateStart?fmtDate(o.dateStart)+(o.dateEnd&&o.dateEnd!==o.dateStart?' – '+fmtDate(o.dateEnd):''):'—';
   let html=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badge}${doneBadge}<span style="font-size:12px;color:var(--txt2)">${dates}</span></div>`;
@@ -789,9 +875,9 @@ function renderObject(id){
         <div class="metric"><div class="metric-lbl">Доход</div><div class="metric-val" style="font-size:20px;color:var(--green)">${fmtMoney(fin.rev)}</div></div>
         <div class="metric"><div class="metric-lbl">Расход</div><div class="metric-val" style="font-size:20px;color:var(--red)">${fmtMoney(fin.exp)}</div></div>
         <div class="metric"><div class="metric-lbl">Прибыль</div><div class="metric-val" style="font-size:20px;color:var(--gold)">${fmtMoney(fin.profit)}</div></div>
-        <div class="metric"><div class="metric-lbl">Доля Игоря</div><div class="metric-val" style="font-size:20px;color:var(--gold)">${fmtMoney(fin.igor)}</div></div>
+        <div class="metric"><div class="metric-lbl">Личная доля</div><div class="metric-val" style="font-size:20px;color:var(--gold)">${fmtMoney(fin.igor)}</div></div>
       </div>
-      <div class="card flat"><div class="eq-meta" style="margin-bottom:6px">Как считается доля Игоря</div>
+      <div class="card flat"><div class="eq-meta" style="margin-bottom:6px">Как считается личная доля</div>
         ${o.type==='igor'
           ?`<div style="font-size:13px;color:var(--txt2);line-height:1.9">Прибыль с оборуд. ${fmtMoney(fin.profitEquip)} × ${db.rates.igorEquipPct}%<br>Прибыль с расходников ${fmtMoney(fin.profitCons)} × ${db.rates.igorConsPct}%<br>Чистая прибыль ${fmtMoney(fin.profitNet)} × ${db.rates.igorNetPct}%</div>`
           :`<div style="font-size:13px;color:var(--txt2);line-height:1.9">Чистая прибыль ${fmtMoney(fin.profitNet)} × ${db.rates.generalNetPct}%</div>`}
@@ -803,15 +889,16 @@ function renderObject(id){
     html+=prip.length?`<div class="card flat" style="padding:2px 15px">${prip.map(p=>invRow(esc(p.name),fmtDate(p.d),p.q+' '+(p.unit||'шт'))).join('')}</div>`:`<div class="empty" style="padding:12px 0">Приписок нет</div>`;
     html+=`<div class="section-lbl">Отчёты</div>
       <button class="btn btn-ghost" onclick="exportObjectXlsx(${id},'general')">⬇ Отчёт генеральному (с приписками)</button>
-      <button class="btn btn-ghost" onclick="exportObjectXlsx(${id},'producer')">⬇ Отчёт продюсеру (без приписок)</button>`;
+      <button class="btn btn-ghost" onclick="exportObjectXlsx(${id},'customer')">⬇ Отчёт заказчику / режиссёру</button>`;
   }
 
   html+=`<div class="section-lbl">Ежедневные отчёты (${trips.length})</div>`;
   html+=trips.length?trips.map(t=>{
     const pr=canManage()?calcProfit(t):null;
-    return `<div class="card" style="margin-bottom:9px" onclick="openTrip(${t.id})"><div class="card-top"><div><div class="card-name" style="font-size:15px">${fmtDate(t.date)} · ${t.type}</div><div class="card-sub">${t.crew.join(', ')}${canManage()&&t.author?' · отв. '+esc(t.author):''}</div></div>${hasUnreturned(t)?'<span class="chip chip-gold" style="padding:4px 10px">в поле</span>':hasUnsettled(t)?'<span class="chip chip-blue" style="padding:4px 10px">расход?</span>':'<span class="chip chip-green" style="padding:4px 10px">закрыт</span>'}</div>${pr!=null?`<div class="card-sub" style="margin-top:4px">Прибыль дня: <b class="mono" style="color:${pr>=0?'var(--green)':'var(--red)'}">${fmtMoney(pr)} ₽</b></div>`:''}</div>`;
+    return `<div class="card" style="margin-bottom:9px" onclick="openTrip(${t.id})"><div class="card-top"><div><div class="card-name" style="font-size:15px">${fmtDate(t.date)} · ${t.type}</div><div class="card-sub">${t.crew.join(', ')}${canManage()&&t.author?' · отв. '+esc(t.author):''}</div></div>${t.closed?'<span class="chip chip-off" style="padding:4px 10px">🔒 закрыт</span>':hasUnreturned(t)?'<span class="chip chip-gold" style="padding:4px 10px">в поле</span>':'<span class="chip chip-blue" style="padding:4px 10px">открыт</span>'}</div>${pr!=null?`<div class="card-sub" style="margin-top:4px">Прибыль дня: <b class="mono" style="color:${pr>=0?'var(--green)':'var(--red)'}">${fmtMoney(pr)} ₽</b></div>`:''}</div>`;
   }).join(''):'<div class="empty">Отчётов пока нет</div>';
   html+=`<button class="btn btn-primary" onclick="startReport(${id})">+ Новый отчёт в этот объект</button>`;
+  if(canManage())html+=`<button class="btn btn-ghost" onclick="startPlan(${id})">📅 Добавить в расписание</button>`;
   if(canManage())html+=`<button class="btn btn-ghost" onclick="delObject(${id})">Удалить объект</button>`;
   document.getElementById('object-body').innerHTML=html;
 }
@@ -846,7 +933,7 @@ function renderRpResults(){
   const box=document.getElementById('rp-results');
   if(!objs.length){box.innerHTML=`<div class="empty" style="padding:12px 0">${q?'Ничего не найдено':'Активных объектов нет — попробуй ввести название'}</div>`;return;}
   box.innerHTML=objs.map(o=>{
-    const tbadge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 9px;font-size:10px">Игорь</span>':'<span class="chip chip-blue" style="padding:3px 9px;font-size:10px">Генеральный</span>';
+    const tbadge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 9px;font-size:10px">Личный</span>':'<span class="chip chip-blue" style="padding:3px 9px;font-size:10px">Генеральный</span>';
     const doneTag=o.completed?'<span class="chip chip-off" style="padding:3px 9px;font-size:10px">завершён</span>':'';
     return `<div class="rp-item" onclick="startReport(${o.id})"><span>${esc(o.name)}</span><span style="display:flex;gap:6px;flex-shrink:0">${tbadge}${doneTag}</span></div>`;
   }).join('');
@@ -858,7 +945,9 @@ function openTrip(id){
   const flagged=hasNotes&&/приписал|достал|сломал|потерял|не верн/i.test(t.notes);
   const tr=(db.transport||[]).find(x=>x.id===t.transportId);
   const mgr=canManage();
-  const editUse=mgr||(me&&t.author===me.name); // расход/приписку правит автор или руководитель
+  const isAuthor=me&&t.author===me.name;
+  // руководитель/админ может редактировать всегда ("по запросу"); автор — только пока отчёт не закрыт
+  const editUse=mgr||(isAuthor&&!t.closed);
   // строки оборудования
   let equipRows='';
   t.items.forEach((i,idx)=>{
@@ -870,24 +959,26 @@ function openTrip(id){
       const usedCtl=(editUse&&!i.settled)
         ? `<input class="qty-input" style="width:52px" type="number" min="0" max="${i.taken}" value="${i.used}" onchange="setUsed(${t.id},${idx},this.value)"/>`
         : `<span class="mono" style="font-weight:700">${i.used}</span>`;
-      const pripCtl=mgr
+      const showPrip=mgr||editUse; // видит руководитель или причастный к отчёту (автор)
+      const pripCtl=(editUse&&!i.settled)
         ? `<input class="qty-input" style="width:46px" type="number" min="0" value="${i.pripiska||0}" onchange="setPripiska(${t.id},${idx},this.value)"/>`
         : (i.pripiska?`<span class="mono" style="color:var(--gold)">${i.pripiska}</span>`:'—');
       equipRows+=`<div class="eq-row"><div style="flex:1"><div class="eq-name">${esc(i.name)}<span class="tag ${TAG[tp]}">${TYPE_LBL[tp].split(' ')[0]}</span>${i.settled?'<span class="tag tag-cons">закрыто</span>':''}</div>
-        <div class="eq-meta" style="margin-top:3px;display:flex;gap:14px;align-items:center">взято: <b class="mono" style="color:var(--txt)">${i.taken||i.qty}</b> · исп.: ${usedCtl}${mgr?` · <span title="приписка">припис.:</span> ${pripCtl}`:''}</div></div></div>`;
+        <div class="eq-meta" style="margin-top:3px;display:flex;gap:14px;align-items:center">взято: <b class="mono" style="color:var(--txt)">${i.taken||i.qty}</b> · исп.: ${usedCtl}${showPrip?` · <span title="приписка">припис.:</span> ${pripCtl}`:''}</div></div></div>`;
     }
   });
   const otTotal=(t.overtime||[]).reduce((a,o)=>a+(+o.hours||0),0);
   document.getElementById('trip-detail').innerHTML=`
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="chip chip-em" style="padding:5px 12px">${esc(t.type||'Съёмка')}</span><span style="font-size:12px;color:var(--txt2)">${t.crew.length} чел · ${t.km} км</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="chip chip-em" style="padding:5px 12px">${esc(t.type||'Съёмка')}</span><span style="font-size:12px;color:var(--txt2)">${t.crew.length} чел · ${t.km} км</span>${t.closed?'<span class="chip chip-off" style="padding:5px 12px">🔒 отчёт закрыт</span>':''}</div>
     ${mgr&&t.author?`<div class="note-box note-blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/></svg><span>Ответственный: <b>${esc(t.author)}</b></span></div>`:''}
+    ${t.closed&&!mgr?`<div class="note-box note-gold"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>Отчёт закрыт — изменить может только руководитель.</span></div>`:''}
     <div><div class="lbl">Бригада</div><div class="crew-grid" style="margin-top:2px">${t.crew.map(c=>{const e=db.employees.find(x=>x.name===c)||{c:'#888',bg:'#333'};return `<div style="display:flex;align-items:center;gap:7px"><div class="avatar" style="background:${e.bg};color:${e.c}">${ini(c)}</div><span style="font-size:14px">${c}${c===t.driver?' ★':''}</span></div>`}).join('')}</div></div>
     <div class="sep"></div>
-    <div><div class="lbl">Оборудование и расход</div>${equipRows}${hasUnreturned(t)&&canReturn(t)?`<button class="btn btn-ghost" onclick="returnAll(${t.id})">↩ Вернуть многоразовое на склад</button>`:''}${hasUnsettled(t)&&editUse?`<button class="btn btn-ghost" onclick="settleTrip(${t.id})">✓ Закрыть расход — вернуть неиспользованное на склад</button>`:''}</div>
+    <div><div class="lbl">Оборудование и расход</div>${equipRows}${hasUnreturned(t)&&canReturn(t)?`<button class="btn btn-ghost" onclick="returnAll(${t.id})">↩ Вернуть многоразовое на склад</button>`:''}${!t.closed&&editUse?`<button class="btn btn-ghost" onclick="closeTrip(${t.id})">🔒 Закрыть отчёт — вернуть неиспользованное на склад</button>`:''}${t.closed&&mgr?`<button class="btn btn-ghost" onclick="reopenTrip(${t.id})">🔓 Открыть заново</button>`:''}</div>
     <div class="sep"></div>
     <div><div class="lbl">Переработка ${otTotal?`<span style="color:var(--gold)">(${otTotal} ч)</span>`:''}</div>
       ${(t.overtime||[]).length?`<div class="card flat" style="padding:2px 15px">${t.overtime.map(o=>invRow(esc(o.name),o.hours+' ч × '+fmtMoney(db.rates.overtime),fmtMoney((o.hours||0)*(db.rates.overtime||0)))).join('')}</div>`:'<div class="eq-meta">не указана</div>'}
-      ${editUse?`<button class="btn btn-ghost" onclick="openOvertime(${t.id})">+ Указать переработку</button>`:''}</div>
+      ${(mgr||editUse)?`<button class="btn btn-ghost" onclick="openOvertime(${t.id})">+ Указать переработку</button>`:''}</div>
     ${hasNotes?`<div class="note-box ${flagged?'note-red':'note-gold'}"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><span>${esc(t.notes)}</span></div>`:''}
     <div class="sep"></div>
     <div class="metric-grid"><div class="metric"><div class="metric-lbl">Транспорт</div><div style="font-size:14px;font-weight:600;margin-top:3px">${tr?esc(tr.name):(t.driver?'вод. '+esc(t.driver):'—')}</div></div><div class="metric"><div class="metric-lbl">Километраж</div><div class="metric-val" style="font-size:24px">${t.km}<span style="font-size:13px;color:var(--txt3)"> км</span></div></div></div>
@@ -903,30 +994,82 @@ let otTripId=null;
 function openOvertime(id){otTripId=id;renderOvertime();document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));document.getElementById('s-overtime').classList.remove('hidden');}
 function renderOvertime(){
   const t=db.trips.find(x=>x.id===otTripId);if(!t)return;
-  const rows=(t.crew||[]).map(name=>{
+  const showRate=canManage();
+  const rows=(t.crew||[]).map((name,idx)=>{
     const cur=(t.overtime||[]).find(o=>o.name===name);const h=cur?cur.hours:0;
-    return `<div class="added-row"><div style="flex:1"><div class="eq-name">${esc(name)}</div><div class="eq-meta">${fmtMoney(db.rates.overtime)} ₽ / час</div></div>
-      <div class="eq-controls"><button class="eq-btn" onclick="chOt('${name.replace(/'/g,"\\'")}',-1)">−</button>
-      <input class="qty-input" type="number" min="0" value="${h}" onchange="setOt('${name.replace(/'/g,"\\'")}',this.value)"/>
-      <button class="eq-btn" onclick="chOt('${name.replace(/'/g,"\\'")}',1)">+</button><span style="font-size:12px;color:var(--txt2)">ч</span></div></div>`;
+    return `<div class="added-row"><div style="flex:1"><div class="eq-name">${esc(name)}</div>${showRate?`<div class="eq-meta">${fmtMoney(db.rates.overtime)} ₽ / час</div>`:''}</div>
+      <div class="eq-controls"><button class="eq-btn" onclick="chOt(${idx},-1)">−</button>
+      <input class="qty-input" id="ot-input-${idx}" type="number" min="0" value="${h}" onchange="setOt(${idx},this.value)"/>
+      <button class="eq-btn" onclick="chOt(${idx},1)">+</button><span style="font-size:12px;color:var(--txt2)">ч</span></div></div>`;
   }).join('');
   document.getElementById('overtime-body').innerHTML=`
     <div class="card flat"><div class="card-name" style="font-size:15px">${esc(t.project)} · ${fmtDate(t.date)}</div></div>
     <div class="lbl">Часы переработки по сотрудникам</div>${rows}
-    <div class="note-box note-gold"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>Ставку ₽/час меняет руководитель в разделе «Прайс».</span></div>
     <button class="btn btn-primary" onclick="openTrip(otTripId)">Готово</button>`;
 }
-function setOt(name,val){const t=db.trips.find(x=>x.id===otTripId);if(!t)return;let h=parseInt(val)||0;h=Math.max(0,h);if(!t.overtime)t.overtime=[];const e=t.overtime.find(o=>o.name===name);if(h===0){t.overtime=t.overtime.filter(o=>o.name!==name);}else if(e){e.hours=h;}else{t.overtime.push({name,hours:h});}saveDB(db);renderOvertime();}
-function chOt(name,d){const t=db.trips.find(x=>x.id===otTripId);const e=(t.overtime||[]).find(o=>o.name===name);const cur=e?e.hours:0;setOt(name,Math.max(0,cur+d));}
+/* Точечное обновление одной строки — не пересобираем весь экран на каждый клик +/-
+   (полная перерисовка на каждый тап и была причиной вылета при быстрых повторных нажатиях) */
+function applyOt(t,name,h,idx){
+  if(!Array.isArray(t.overtime))t.overtime=[];
+  const e=t.overtime.find(o=>o.name===name);
+  if(h===0)t.overtime=t.overtime.filter(o=>o.name!==name);
+  else if(e)e.hours=h;
+  else t.overtime.push({name,hours:h});
+  saveDB(db);
+  const input=document.getElementById('ot-input-'+idx);
+  if(input)input.value=h;
+}
+function setOt(idx,val){
+  const t=db.trips.find(x=>x.id===otTripId);if(!t)return;
+  const name=(t.crew||[])[idx];if(name===undefined)return;
+  let h=parseInt(val);if(isNaN(h)||h<0)h=0;
+  applyOt(t,name,h,idx);
+}
+function chOt(idx,d){
+  const t=db.trips.find(x=>x.id===otTripId);if(!t)return;
+  const name=(t.crew||[])[idx];if(name===undefined)return;
+  const e=(t.overtime||[]).find(o=>o.name===name);
+  const cur=e?e.hours:0;
+  applyOt(t,name,Math.max(0,cur+d),idx);
+}
 
 /* ============ NEW REPORT (TRIP) ============ */
 function startReport(objId){
   const o=db.objects.find(x=>x.id===objId);if(!o){alert('Объект не найден');return}
   const mine=(me&&me.perm!=='admin')?[me.name]:[];
-  draft={objectId:objId,project:o.name,date:new Date().toISOString().split('T')[0],type:'Съёмка',crew:mine,driver:'',km:0,transportId:'',driverRate:0,items:{},notes:''};
+  draft={mode:'trip',objectId:objId,project:o.name,date:new Date().toISOString().split('T')[0],type:'Съёмка',crew:mine,driver:'',km:0,transportId:'',driverRate:0,items:{},notes:''};
   document.getElementById('n-objname').textContent=o.name;
   document.getElementById('type-chips').innerHTML=TYPES.map(t=>`<span class="chip ${draft.type===t.k?t.cls:'chip-off'}" data-type="${t.k}" data-cls="${t.cls}" onclick="pickType(this)">${t.k}</span>`).join('');
   document.getElementById('n-date').value=draft.date;go('s-new1');
+}
+/* Заготовка на дату (расписание) — тот же мастер, что и обычный отчёт, но:
+   - не списывает склад и не создаёт выезд, а сохраняется в o.plan[]
+   - бригада не подставляется автоматически (руководитель сам назначает состав) */
+function startPlan(objId){
+  const o=db.objects.find(x=>x.id===objId);if(!o){alert('Объект не найден');return}
+  draft={mode:'plan',objectId:objId,project:o.name,date:new Date().toISOString().split('T')[0],type:'Съёмка',crew:[],driver:'',km:0,transportId:'',driverRate:0,items:{},notes:''};
+  document.getElementById('n-objname').textContent=o.name;
+  document.getElementById('type-chips').innerHTML=TYPES.map(t=>`<span class="chip ${draft.type===t.k?t.cls:'chip-off'}" data-type="${t.k}" data-cls="${t.cls}" onclick="pickType(this)">${t.k}</span>`).join('');
+  document.getElementById('n-date').value=draft.date;
+  document.getElementById('sp-panel').classList.add('hidden');
+  go('s-new1');
+}
+/* Заготовка → реальный отчёт: та же дата/бригада/оборудование, можно поменять на любом шаге */
+function startReportFromPlan(objId,planId){
+  const o=db.objects.find(x=>x.id===objId);if(!o)return;
+  const p=(o.plan||[]).find(x=>x.id===planId);if(!p)return;
+  startReport(objId);
+  draft.date=p.date;draft.crew=[...(p.crew||[])];draft.items={...(p.items||{})};
+  document.getElementById('n-date').value=draft.date;
+  o.plan=(o.plan||[]).filter(x=>x.id!==planId);
+  saveDB(db);
+}
+/* Заголовки/кнопка мастера меняются в зависимости от режима (обычный отчёт / заготовка) */
+function syncWizardChrome(){
+  const isPlan=draft&&draft.mode==='plan';
+  const label=isPlan?'Заготовка на дату':'Новый выезд';
+  ['wt-new1','wt-new2','wt-new3','wt-new4'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=label;});
+  const btn=document.getElementById('wiz-submit-btn');if(btn)btn.textContent=isPlan?'Сохранить в расписание':'Отправить отчёт';
 }
 function pickType(el){draft.type=el.dataset.type;document.querySelectorAll('#type-chips .chip').forEach(c=>c.className='chip chip-off');el.className='chip '+el.dataset.cls}
 function step1(){draft.date=document.getElementById('n-date').value;
@@ -936,6 +1079,7 @@ function step1(){draft.date=document.getElementById('n-date').value;
   document.getElementById('n-transport').innerHTML='<option value="">— не указан —</option>'+(db.transport||[]).map(tr=>`<option value="${tr.id}" ${draft.transportId==tr.id?'selected':''}>${esc(tr.name)} · ${tr.kind==='truck'?'грузовой':'легковой'} · ${tr.own?'свой':'наёмный'}</option>`).join('');
   document.getElementById('n-km').value=draft.km||'';
   document.getElementById('n-driverrate').value=draft.driverRate||'';
+  document.getElementById('driverrate-wrap').classList.toggle('hidden',!canManage());
   go('s-new2');
 }
 function renderCrewChips(){
@@ -989,6 +1133,7 @@ function chQty(name,d){const s=db.stock.find(x=>x.name===name);const max=s?avail
 function rmEquip(name){delete draft.items[name];renderEquipAvail();renderChosen()}
 function renderSummary(){const items=Object.entries(draft.items);const tr=(db.transport||[]).find(x=>x.id==draft.transportId);document.getElementById('summary-card').innerHTML=`<div class="summary-line"><b>${esc(draft.project)}</b> · ${fmtDate(draft.date)} · ${draft.type}</div><div class="summary-line">${draft.crew.join(', ')}${draft.driver?' (вод. '+draft.driver+')':''} · ${draft.km} км${tr?' · '+esc(tr.name):''}</div><div class="summary-line">${items.length?items.map(([n,q])=>esc(n)+' ×'+q).join(', '):'<span style="color:var(--txt3)">оборудование не выбрано</span>'}</div>`}
 function submitTrip(){draft.notes=document.getElementById('n-notes').value;
+  if(draft.mode==='plan'){saveDraftAsPlan();return}
   Object.entries(draft.items).forEach(([name,q])=>{const s=db.stock.find(x=>x.name===name);if(s&&!s.returnable)s.qty=Math.max(0,s.qty-q)});
   const nextId=db.trips.length?Math.max(...db.trips.map(t=>t.id))+1:1;
   db.trips.push({id:nextId,objectId:draft.objectId,project:draft.project,date:draft.date,type:draft.type,
@@ -1000,14 +1145,29 @@ function submitTrip(){draft.notes=document.getElementById('n-notes').value;
   const obj=db.objects.find(o=>o.id===draft.objectId);
   if(obj){if(!obj.dateStart||draft.date<obj.dateStart)obj.dateStart=draft.date;if(!obj.dateEnd||draft.date>obj.dateEnd)obj.dateEnd=draft.date;}
   saveDB(db);go('s-success')}
+/* Сохранение заготовки в расписание объекта (без списания склада, без выезда) */
+function saveDraftAsPlan(){
+  const o=db.objects.find(x=>x.id===draft.objectId);if(!o){go('s-home');return}
+  const pid=o.plan.length?Math.max(...o.plan.map(p=>p.id))+1:1;
+  o.plan.push({id:pid,date:draft.date,crew:[...draft.crew],items:{...draft.items},note:draft.notes||''});
+  saveDB(db);
+  showToast('Добавлено в расписание','ok',2200);
+  go('s-schedule');
+}
 
 /* Подтверждение фактического расхода: возврат неиспользованного на склад */
 function setUsed(tripId,idx,val){const t=db.trips.find(x=>x.id===tripId);if(!t)return;const it=t.items[idx];
   let v=parseInt(val);if(isNaN(v)||v<0)v=0;v=Math.min(v,it.taken||0);it.used=v;saveDB(db);openTrip(tripId)}
 function setPripiska(tripId,idx,val){const t=db.trips.find(x=>x.id===tripId);if(!t)return;let v=parseInt(val)||0;t.items[idx].pripiska=Math.max(0,v);saveDB(db);}
-function settleTrip(id){const t=db.trips.find(x=>x.id===id);if(!t)return;
-  if(!confirm('Вернуть неиспользованное на склад? Изменить расход после этого будет нельзя.'))return;
+function closeTrip(id){const t=db.trips.find(x=>x.id===id);if(!t)return;
+  if(!confirm('Закрыть отчёт? Неиспользованное вернётся на склад, дальше менять расход/приписку/переработку сможет только руководитель.'))return;
   t.items.forEach(i=>{if(!i.returnable&&!i.settled){const back=Math.max(0,(i.taken||0)-(i.used||0));if(back>0){const s=db.stock.find(x=>x.name===i.name);if(s)s.qty+=back;}i.settled=true;}});
+  t.closed=true;
+  saveDB(db);openTrip(id)}
+function reopenTrip(id){const t=db.trips.find(x=>x.id===id);if(!t||!canManage())return;
+  if(!confirm('Открыть отчёт заново? Если поменяешь использовано/приписку — проверь остатки склада вручную, автоматический возврат уже произошёл при закрытии.'))return;
+  t.closed=false;
+  t.items.forEach(i=>{if(!i.returnable)i.settled=false;});
   saveDB(db);openTrip(id)}
 function hasUnsettled(t){return (t.items||[]).some(i=>!i.returnable&&!i.settled)}
 
@@ -1017,7 +1177,8 @@ function renderStock(){
   const groups={};db.stock.forEach((s,i)=>{s._i=i;(groups[s.type]=groups[s.type]||[]).push(s)});
   let html='';
   if(canManage()){
-    html+=`<button class="btn btn-primary" style="margin-bottom:6px" onclick="go('s-addstock')">+ Добавить позицию</button>`;
+    html+=`<button class="btn btn-primary" style="margin-bottom:6px" onclick="openAddStock()">+ Добавить позицию</button>`;
+    html+=`<button class="btn btn-ghost" style="margin-bottom:6px" onclick="go('s-stockxlsx')">⇄ Импорт / экспорт Excel</button>`;
   }
   for(const type of['ammo','pyro','equip','cons']){
     if(!groups[type])continue;
@@ -1028,16 +1189,17 @@ function renderStock(){
       const color=danger?'var(--red)':warn?'var(--gold)':'var(--green)';
       const status=s.min===0?'учёт':danger?'мало!':warn?'средне':'норма';
       const pct=Math.min(100,Math.round(avail/Math.max(s.min*2,avail,1)*100));
-      html+=`<div class="card flat" style="margin-bottom:8px">
+      html+=`<div class="card flat" style="margin-bottom:8px" ${canManage()?`onclick="openEditStock(${s._i})"`:''}>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
           <div style="flex:1"><div style="font-size:15px">${esc(s.name)}${s.returnable?'<span class="tag tag-equip">многоразовое</span>':''}${s.type==='ammo'?'<span class="tag tag-ammo">учёт</span>':''}</div>
             <div class="stock-wrap"><div class="stock-bar" style="width:${pct}%;background:${color}"></div></div>
-            <div class="eq-meta" style="margin-top:5px">мин: ${s.min} ${s.unit}${out>0?` · <span style="color:var(--gold)">в поле: ${out}</span>`:''}${canManage()&&s.price?` · цена: ${fmtMoney(s.price)} ₽`:''}</div></div>
+            <div class="eq-meta" style="margin-top:5px">мин: ${s.min} ${s.unit}${out>0?` · <span style="color:var(--gold)" onclick="event.stopPropagation();showHolders('${s.name.replace(/'/g,"\\'")}')">в поле: ${out} (кто держит →)</span>`:''}${canManage()&&s.price?` · цена: ${fmtMoney(s.price)} ₽`:''}</div>
+            ${s.note?`<div class="eq-meta" style="margin-top:3px;color:var(--txt3)">${esc(s.note)}</div>`:''}</div>
           <div style="text-align:right">
             <div class="mono" style="font-size:16px;font-weight:700">${avail}${s.returnable?`<span style="color:var(--txt3)">/${s.qty}</span>`:''} ${s.unit}</div>
             <div style="font-size:11px;color:${color};text-transform:uppercase;letter-spacing:.5px">${status}</div></div>
         </div>
-        ${canManage()?`<div class="eq-controls" style="margin-top:10px;justify-content:flex-end">
+        ${canManage()?`<div class="eq-controls" style="margin-top:10px;justify-content:flex-end" onclick="event.stopPropagation()">
           <button class="eq-btn" onclick="stockQty(${s._i},-1)">−</button>
           <button class="eq-btn" onclick="stockQty(${s._i},-10)" style="font-size:11px">−10</button>
           <button class="eq-btn" onclick="stockQty(${s._i},10)" style="font-size:11px">+10</button>
@@ -1049,15 +1211,52 @@ function renderStock(){
   }
   document.getElementById('stock-list').innerHTML=html;
 }
+/* Найти, в каких отчётах висит невозвращённое многоразовое оборудование */
+function showHolders(name){
+  const holders=db.trips.filter(t=>t.items.some(i=>i.name===name&&i.returnable&&!i.returned));
+  if(!holders.length){alert('Всё возвращено — ничего не висит в поле.');return}
+  const list=holders.map(t=>`• ${fmtDate(t.date)} — ${t.project} (отв. ${t.author||'—'})`).join('\n');
+  if(confirm(`«${name}» числится не возвращённым в этих отчётах:\n\n${list}\n\nОткрыть первый из них?`)){
+    openTrip(holders[0].id);
+  }
+}
 function stockQty(i,d){db.stock[i].qty=Math.max(0,db.stock[i].qty+d);saveDB(db);renderStock()}
 function delStock(i){if(!confirm('Удалить «'+db.stock[i].name+'» со склада?'))return;db.stock.splice(i,1);saveDB(db);renderStock()}
+let editingStockIdx=null;
+function openAddStock(){
+  editingStockIdx=null;
+  document.getElementById('as-title').textContent='Новая позиция склада';
+  document.getElementById('as-submit').textContent='Добавить на склад';
+  ['as-name','as-qty','as-min','as-price','as-cost','as-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('as-unit').value='шт';
+  document.getElementById('as-type').value='pyro';
+  document.getElementById('as-ret').value='0';
+  go('s-addstock');
+}
+function openEditStock(i){
+  const s=db.stock[i];if(!s)return;
+  editingStockIdx=i;
+  document.getElementById('as-title').textContent='Изменить позицию';
+  document.getElementById('as-submit').textContent='Сохранить изменения';
+  document.getElementById('as-name').value=s.name;
+  document.getElementById('as-type').value=s.type;
+  document.getElementById('as-qty').value=s.qty||0;
+  document.getElementById('as-unit').value=s.unit||'шт';
+  document.getElementById('as-min').value=s.min||0;
+  document.getElementById('as-ret').value=s.returnable?'1':'0';
+  document.getElementById('as-price').value=s.price||0;
+  document.getElementById('as-cost').value=s.cost||0;
+  document.getElementById('as-note').value=s.note||'';
+  go('s-addstock');
+}
 function saveStock(){
   const name=document.getElementById('as-name').value.trim();
   if(!name){shake('as-name');return}
-  db.stock.push({name,type:document.getElementById('as-type').value,qty:parseInt(document.getElementById('as-qty').value)||0,unit:document.getElementById('as-unit').value.trim()||'шт',min:parseInt(document.getElementById('as-min').value)||0,price:parseInt(document.getElementById('as-price').value)||0,returnable:document.getElementById('as-ret').value==='1'});
+  const data={name,type:document.getElementById('as-type').value,qty:parseInt(document.getElementById('as-qty').value)||0,unit:document.getElementById('as-unit').value.trim()||'шт',min:parseInt(document.getElementById('as-min').value)||0,price:parseInt(document.getElementById('as-price').value)||0,cost:parseInt(document.getElementById('as-cost').value)||0,note:document.getElementById('as-note').value.trim(),returnable:document.getElementById('as-ret').value==='1'};
+  if(editingStockIdx!=null&&db.stock[editingStockIdx]){Object.assign(db.stock[editingStockIdx],data);}
+  else{db.stock.push(data);}
   saveDB(db);
-  ['as-name','as-qty','as-min','as-price'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('as-unit').value='шт';
+  editingStockIdx=null;
   go('s-stock');
 }
 
@@ -1272,9 +1471,11 @@ function fmtMoney(n){return Math.round(n||0).toLocaleString('ru-RU')}
 
 /* Кол-во для СЧЁТА заказчику:
    - многоразовое оборудование — по взятому (аренда за факт выдачи)
-   - расходники/пиротехника — по ИСПОЛЬЗОВАННОМУ */
-function billQty(i){return i.returnable?(i.taken||i.qty||0):(i.used!=null?i.used:(i.qty||0))}
-/* Кол-во для СЕБЕСТОИМОСТИ (наш расход) — только реально израсходованное */
+   - расходники/пиротехника — использовано + приписано (заказчик платит и за приписанное —
+     режиссёр/заказчик получает отчёт, где приписка неотличима от реального использования) */
+function billQty(i){return i.returnable?(i.taken||i.qty||0):((i.used!=null?i.used:(i.qty||0))+(+i.pripiska||0))}
+/* Кол-во для СЕБЕСТОИМОСТИ (наш реальный расход) — только фактически израсходованное,
+   приписка не создаёт дополнительного расхода — это и есть источник дополнительной прибыли */
 function costQty(i){return i.used!=null?i.used:(i.qty||0)}
 
 function transportCost(t){
@@ -1365,8 +1566,8 @@ function renderPrice(){
 
   // ── Распределение прибыли (Игорь)
   const R=db.rates;
-  html+=`<div class="section-lbl" style="margin-top:14px">Распределение прибыли — доля Игоря</div>
-    <div class="card flat"><div class="eq-meta" style="margin-bottom:8px">Проект Игоря</div>
+  html+=`<div class="section-lbl" style="margin-top:14px">Распределение прибыли — личная доля</div>
+    <div class="card flat"><div class="eq-meta" style="margin-bottom:8px">Личный проект</div>
       ${pctRow('С прибыли оборудования','igorEquipPct',R.igorEquipPct)}
       ${pctRow('С прибыли расходников','igorConsPct',R.igorConsPct)}
       ${pctRow('С чистой прибыли','igorNetPct',R.igorNetPct)}
@@ -1375,13 +1576,7 @@ function renderPrice(){
       ${pctRow('С чистой прибыли','generalNetPct',R.generalNetPct)}
     </div>`;
 
-  html+=`<div class="section-lbl" style="margin-top:14px">Оборудование — цена / закупка</div>`;
-  db.stock.forEach((s,i)=>{html+=`<div class="card flat" style="margin-bottom:8px">
-    <div class="eq-name" style="margin-bottom:8px">${esc(s.name)}<span class="tag ${TAG[s.type]}">${TYPE_LBL[s.type].split(' ')[0]}</span></div>
-    <div style="display:flex;gap:10px">
-      <div style="flex:1"><div class="eq-meta" style="margin-bottom:4px">заказчику, ₽</div><input class="qty-input" style="width:100%" type="number" min="0" value="${s.price||0}" onchange="setStockField(${i},'price',this.value)"/></div>
-      <div style="flex:1"><div class="eq-meta" style="margin-bottom:4px">закупка, ₽</div><input class="qty-input" style="width:100%" type="number" min="0" value="${s.cost||0}" onchange="setStockField(${i},'cost',this.value)"/></div>
-    </div></div>`});
+  html+=`<div class="note-box note-blue" style="margin-top:14px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>Цена и закупка каждой позиции задаются на складе — открой карточку товара во вкладке «Склад».</span></div>`;
   html+=`<button class="btn btn-primary" style="margin-top:6px" onclick="exportAllXlsx()">⬇ Все выезды в Excel</button>`;
   html+=`<button class="btn btn-ghost" onclick="exportStockXlsx()">⬇ Склад в Excel</button>`;
   document.getElementById('price-body').innerHTML=html;
@@ -1391,7 +1586,6 @@ function addTransport(){const id=(db.transport&&db.transport.length)?Math.max(..
 function setTransport(i,f,v){if(f==='rate')v=Math.max(0,parseInt(v)||0);if(f==='own')v=(v==='1'||v===true);db.transport[i][f]=v;saveDB(db);if(f==='own')renderPrice();}
 function delTransport(i){if(!confirm('Удалить «'+db.transport[i].name+'» из справочника?'))return;db.transport.splice(i,1);saveDB(db);renderPrice();}
 function setRate(k,v){db.rates[k]=Math.max(0,parseInt(v)||0);saveDB(db)}
-function setStockField(i,f,v){db.stock[i][f]=Math.max(0,parseInt(v)||0);saveDB(db)}
 function addWorkRate(){const name=prompt('Название ставки (например: Работа ассистента смена):');if(!name)return;const amt=parseInt(prompt('Сумма заказчику, ₽:'))||0;if(!db.workRates)db.workRates=[];db.workRates.push({name:name.trim(),amount:amt});saveDB(db);renderPrice()}
 function setWorkRate(i,f,v){db.workRates[i][f]=(f==='amount')?Math.max(0,parseInt(v)||0):v;saveDB(db)}
 function delWorkRate(i){if(!confirm('Удалить ставку «'+db.workRates[i].name+'»?'))return;db.workRates.splice(i,1);saveDB(db);renderPrice()}
@@ -1468,24 +1662,100 @@ function exportStockXlsx(){
   const ws=XLSX.utils.json_to_sheet(rows);
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Склад');XLSX.writeFile(wb,'pyrolog-sklad.xlsx');
 }
-/* Отчёт по объекту. mode='general' → с приписками (левак). mode='producer' → без. */
+/* Шаблон для массового заполнения/правки склада: те же колонки, что читает importStockXlsx.
+   Если склад уже не пуст — выгружает текущие позиции (можно поправить и загрузить обратно),
+   если пуст — просто заголовки с одной пример-строкой. */
+function exportStockTemplateXlsx(){
+  if(typeof XLSX==='undefined'){alert('Excel-модуль не загрузился — нужен интернет при первом открытии.');return}
+  const cols=['Позиция','Категория','На складе','Ед.','Мин. остаток','Многоразовое','Цена заказчику, ₽','Закупка, ₽','Заметка'];
+  let rows;
+  if(db.stock.length){
+    rows=db.stock.map(s=>({'Позиция':s.name,'Категория':TYPE_LBL[s.type],'На складе':s.qty,'Ед.':s.unit,'Мин. остаток':s.min,'Многоразовое':s.returnable?'да':'нет','Цена заказчику, ₽':s.price||0,'Закупка, ₽':s.cost||0,'Заметка':s.note||''}));
+  }else{
+    rows=[{'Позиция':'Шашка дымовая белая','Категория':'Пиротехника','На складе':20,'Ед.':'шт','Мин. остаток':5,'Многоразовое':'нет','Цена заказчику, ₽':800,'Закупка, ₽':400,'Заметка':'пример строки — удали и заполни своими'}];
+  }
+  const ws=XLSX.utils.json_to_sheet(rows,{header:cols});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Склад');
+  XLSX.writeFile(wb,'pyrolog-sklad-shablon.xlsx');
+}
+function stockTypeFromLabel(label){
+  const l=(label||'').toLowerCase().trim();
+  for(const k in TYPE_LBL){if(TYPE_LBL[k].toLowerCase()===l)return k;}
+  if(l.startsWith('пиротех'))return 'pyro';
+  if(l.startsWith('оруж'))return 'ammo';
+  if(l.startsWith('оборуд'))return 'equip';
+  if(l.startsWith('расход'))return 'cons';
+  return 'cons';
+}
+function importStockXlsx(input){
+  const file=input.files&&input.files[0];if(!file)return;
+  if(typeof XLSX==='undefined'){alert('Excel-модуль не загрузился — нужен интернет.');return}
+  const status=document.getElementById('stock-import-status');status.innerHTML='<div class="empty">Читаю файл...</div>';
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      let added=0,updated=0,skipped=0;
+      rows.forEach(r=>{
+        const name=String(r['Позиция']||'').trim();
+        if(!name){skipped++;return}
+        const data={
+          name,
+          type:stockTypeFromLabel(r['Категория']),
+          qty:parseInt(r['На складе'])||0,
+          unit:String(r['Ед.']||'шт').trim()||'шт',
+          min:parseInt(r['Мин. остаток'])||0,
+          returnable:/^(да|yes|1|true)$/i.test(String(r['Многоразовое']||'').trim()),
+          price:parseInt(r['Цена заказчику, ₽'])||0,
+          cost:parseInt(r['Закупка, ₽'])||0,
+          note:String(r['Заметка']||'').trim()
+        };
+        const existing=db.stock.find(s=>s.name.toLowerCase()===name.toLowerCase());
+        if(existing){Object.assign(existing,data);updated++;}
+        else{db.stock.push(data);added++;}
+      });
+      saveDB(db);
+      status.innerHTML=`<div class="note-box note-blue"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg><span>Готово: добавлено ${added}, обновлено ${updated}${skipped?`, пропущено без названия ${skipped}`:''}.</span></div>`;
+      input.value='';
+    }catch(err){
+      console.warn('import stock error',err);
+      status.innerHTML='<div class="note-box note-red"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/></svg><span>Не удалось прочитать файл — проверь, что это .xlsx со столбцами как в шаблоне.</span></div>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+/* Отчёт по объекту.
+   mode='general'  → генеральному директору: отдельная колонка "Приписано", видит реальную раскладку.
+   mode='customer' → режиссёру/заказчику (он же продюсер): приписка НЕ показывается отдельной строкой —
+                      сливается с "использовано", т.к. заказчик и так платит за неё как за реальный расход
+                      (это заложено в саму сумму счёта через billQty, одинаково для обоих режимов). */
 function exportObjectXlsx(objId,mode){
   if(typeof XLSX==='undefined'){alert('Excel-модуль не загрузился — нужен интернет при первом открытии.');return}
   const o=db.objects.find(x=>x.id===objId);if(!o)return;const fin=calcObject(o);
   const withPrip=(mode==='general');
   const trips=objTrips(objId).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   // Лист 1: по дням
-  const rows=trips.map(t=>{const inv=calcInvoice(t);const e=calcExpense(t);const base={'Дата':fmtDate(t.date),'Тип':t.type,'Бригада':t.crew.join(', '),'Ответственный':t.author||'','Км':t.km,'Использовано':t.items.filter(i=>!i.returnable).map(i=>i.name+' ×'+i.used).join('; '),'Доход, ₽':inv.total,'Расход, ₽':e.total,'Прибыль, ₽':inv.total-e.total};if(withPrip)base['Приписано (левак)']=pripiskaList(t).map(i=>i.name+' ×'+i.pripiska).join('; ');return base});
+  const rows=trips.map(t=>{
+    const inv=calcInvoice(t);const e=calcExpense(t);
+    const usedCol=withPrip
+      ?t.items.filter(i=>!i.returnable).map(i=>i.name+' ×'+i.used).join('; ')
+      :t.items.filter(i=>!i.returnable).map(i=>i.name+' ×'+billQty(i)).join('; '); // заказчику — использовано+приписано слитно
+    const base={'Дата':fmtDate(t.date),'Тип':t.type,'Бригада':t.crew.join(', '),'Ответственный':t.author||'','Км':t.km,'Использовано':usedCol,'Доход, ₽':inv.total,'Расход, ₽':e.total,'Прибыль, ₽':inv.total-e.total};
+    if(withPrip)base['Приписано (левак)']=pripiskaList(t).map(i=>i.name+' ×'+i.pripiska).join('; ');
+    return base;
+  });
   // ИТОГО
   const total={'Дата':'ИТОГО','Тип':'','Бригада':'','Ответственный':'','Км':fin.km,'Использовано':'','Доход, ₽':fin.rev,'Расход, ₽':fin.exp,'Прибыль, ₽':fin.profit};if(withPrip)total['Приписано (левак)']='';
   rows.push(total);
   const ws=XLSX.utils.json_to_sheet(rows);
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'По дням');
-  // Лист 2: сводка (доля Игоря — только для генерального)
+  // Лист 2: сводка (личная доля — только для генерального)
   const sum=[['Объект',o.name],['Тип',OBJ_TYPE_LBL[o.type]],['Период',(o.dateStart?fmtDate(o.dateStart):'')+' – '+(o.dateEnd?fmtDate(o.dateEnd):'')],[],['Доход, ₽',fin.rev],['Расход, ₽',fin.exp],['Прибыль, ₽',fin.profit]];
-  if(withPrip){sum.push([]);sum.push(['— Распределение —']);sum.push(['Прибыль с оборудования',fin.profitEquip]);sum.push(['Прибыль с расходников',fin.profitCons]);sum.push(['Чистая прибыль',fin.profitNet]);sum.push(['Доля Игоря',Math.round(fin.igor)]);sum.push(['Компании',Math.round(fin.company)]);}
+  if(withPrip){sum.push([]);sum.push(['— Распределение —']);sum.push(['Прибыль с оборудования',fin.profitEquip]);sum.push(['Прибыль с расходников',fin.profitCons]);sum.push(['Чистая прибыль',fin.profitNet]);sum.push(['Личная доля',Math.round(fin.igor)]);sum.push(['Компании',Math.round(fin.company)]);}
   const ws2=XLSX.utils.aoa_to_sheet(sum);XLSX.utils.book_append_sheet(wb,ws2,'Сводка');
-  XLSX.writeFile(wb,'otchet-'+(mode==='general'?'generalny':'prodyuser')+'-'+o.name.replace(/[^a-zа-я0-9]+/gi,'_')+'.xlsx');
+  XLSX.writeFile(wb,'otchet-'+(mode==='general'?'generalny':'zakazchiku')+'-'+o.name.replace(/[^a-zа-я0-9]+/gi,'_')+'.xlsx');
 }
 function exportStatXlsx(){
   if(typeof XLSX==='undefined'){alert('Excel-модуль не загрузился — нужен интернет при первом открытии приложения.');return}
@@ -1521,7 +1791,7 @@ function exportInvoiceXlsx(id){
 /* ============ RETURNABLE EQUIPMENT ============ */
 function outQty(name){let o=0;db.trips.forEach(t=>t.items.forEach(i=>{if(i.name===name&&i.returnable&&!i.returned)o+=(i.taken||i.qty||0)}));return o}
 function availQty(s){return s.returnable?Math.max(0,s.qty-outQty(s.name)):s.qty}
-function canReturn(t){return canManage()||(me&&t.author===me.name)}
+function canReturn(t){return canManage()||(me&&t.author===me.name&&!t.closed)}
 function hasUnreturned(t){return t.items.some(i=>i.returnable&&!i.returned)}
 function returnItem(id,idx){const t=db.trips.find(x=>x.id===id);if(!t)return;t.items[idx].returned=true;saveDB(db);openTrip(id)}
 function returnAll(id){const t=db.trips.find(x=>x.id===id);if(!t)return;t.items.forEach(i=>{if(i.returnable)i.returned=true});saveDB(db);openTrip(id)}
