@@ -154,11 +154,70 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 .dropdown-add{position:relative}
 .muted-note{font-size:11px;color:var(--txt3);text-align:center;margin-top:4px}
 .fab-add{display:flex;align-items:center;gap:7px;justify-content:center}
+
+/* ============ DESKTOP SHELL (ПК-версия — руководитель/админ) ============ */
+#desktop-sidebar{display:none}
+body.desktop-mode{padding-left:248px}
+body.desktop-mode .app{margin:0 auto}
+@media(min-width:1024px){
+  body.desktop-mode #desktop-sidebar{
+    display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;width:248px;
+    background:var(--bg2);border-right:1px solid var(--line);padding:20px 14px;z-index:50;overflow-y:auto;
+  }
+}
+.ds-logo{display:flex;align-items:center;gap:10px;padding:0 6px 20px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.ds-logo .logo-mark{width:32px;height:32px;border-radius:8px}
+.ds-logo-txt{font-size:16px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.ds-user{display:flex;align-items:center;gap:10px;padding:10px 8px;margin:6px 0 14px;background:var(--bg3);border-radius:12px;border:1px solid var(--line2)}
+.ds-user-name{font-size:13px;font-weight:500}
+.ds-user-role{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px}
+.ds-nav{display:flex;flex-direction:column;gap:2px;flex:1}
+.ds-nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;cursor:pointer;color:var(--txt2);font-size:13px;font-weight:500;position:relative;transition:background .15s,color .15s}
+.ds-nav-item svg{width:17px;height:17px;flex-shrink:0}
+.ds-nav-item:hover{background:var(--bg3);color:var(--txt)}
+.ds-nav-item.active{background:var(--ember-bg);color:var(--ember2)}
+.ds-nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:17px;height:17px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.ds-logout{margin-top:10px;padding-top:14px;border-top:1px solid var(--line)}
+#desktop-dashboard{display:none;padding:32px 40px;max-width:1280px;margin:0 auto;min-height:100vh}
+body.desktop-mode.ds-view-dashboard #desktop-dashboard{display:block}
+body.desktop-mode.ds-view-dashboard .app{display:none}
+.ds-title{font-size:24px;font-weight:600;letter-spacing:.3px;margin-bottom:4px}
+.ds-sub{font-size:13px;color:var(--txt2);margin-bottom:24px}
+.ds-kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:28px}
+.ds-kpi{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.ds-kpi-lbl{font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.ds-kpi-val{font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.ds-row{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;margin-bottom:24px}
+@media(max-width:1180px){.ds-row{grid-template-columns:1fr}}
+.ds-panel{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+.ds-panel-title{font-size:14px;font-weight:600;margin-bottom:16px;text-transform:uppercase;letter-spacing:.4px;color:var(--txt2)}
+.ds-table{width:100%;border-collapse:collapse;font-size:13px}
+.ds-table th{text-align:left;font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;padding:8px 10px;border-bottom:1px solid var(--line2)}
+.ds-table td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.ds-table tr:last-child td{border-bottom:none}
+.ds-table tr.clickable{cursor:pointer}
+.ds-table tr.clickable:hover td{background:var(--bg3)}
+.ds-period{display:flex;gap:6px;margin-bottom:22px}
+.ds-period-btn{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;background:var(--bg3);color:var(--txt2);border:1px solid var(--line2)}
+.ds-period-btn.active{background:var(--ember);color:#fff;border-color:var(--ember)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
 <body>
+
+<!-- ===== DESKTOP SIDEBAR (ПК-версия) ===== -->
+<div id="desktop-sidebar">
+  <div class="ds-logo"><div class="logo-mark">🔥</div><div class="ds-logo-txt">PyroLog</div></div>
+  <div class="ds-user" id="ds-user"></div>
+  <div class="ds-nav" id="ds-nav"></div>
+  <div class="ds-logout"><button class="btn btn-ghost" onclick="logout()" style="font-size:12px">Выйти</button></div>
+</div>
+
+<!-- ===== DESKTOP DASHBOARD (ПК-версия) ===== -->
+<div id="desktop-dashboard"></div>
+
 <div class="app">
 
 <!-- ===== LOGIN ===== -->
@@ -700,12 +759,13 @@ async function doLogin(){
   if(emp){me=emp;}
   else if(data.user.email===ADMIN_EMAIL){me={name:'Администратор',role:'Разработчик',perm:'admin',c:'#ff7d4d',bg:'rgba(255,87,34,.18)',email:ADMIN_EMAIL};}
   else{setErr('login-error','Email не найден в списке сотрудников');await sb.auth.signOut();btn.disabled=false;btn.textContent='Войти';return;}
-  startRealtime();renderNav();renderUserBtn();go('s-home');
+  startRealtime();renderNav();renderUserBtn();go('s-home');updateShellMode();
 }
 
 async function logout(){
   if(_realtimeSub){try{sb.removeChannel(_realtimeSub);}catch(e){}  _realtimeSub=null;}
   await sb.auth.signOut();me=null;showOnly('s-login');
+  document.body.classList.remove('desktop-mode','ds-view-dashboard');
   document.getElementById('login-email').value='';
   document.getElementById('login-pass').value='';
   setErr('login-error','');
@@ -751,8 +811,154 @@ function renderNav(){
     const cur=nid.replace('nav-','s-');
     cont.innerHTML=items.map(n=>`<div class="nav-item ${n.id===cur?'active':''}" onclick="go('${n.id}')"><svg viewBox="0 0 24 24">${n.icon}</svg>${n.lbl}${(n.id==='s-team'&&un>0)?`<span class="nav-badge">${un>99?'99+':un}</span>`:''}${(n.id==='s-home'&&sUn>0)?`<span class="nav-badge">${sUn>99?'99+':sUn}</span>`:''}</div>`).join('');
   });
+  renderDesktopSidebar();
 }
 function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary();if(id==='s-object')renderObject(curObjId);if(id==='s-schedule')renderSchedule();if(id==='s-chat')renderChat();if(id==='s-feedback')renderFeedback();if(id==='s-fbthread')renderFbThread();if(id==='s-auditlog')renderAuditLog();if(id.indexOf('s-new')===0)syncWizardChrome();renderNav();}
+
+/* ============ DESKTOP SHELL (ПК-версия) ============
+   Активируется на широких экранах (от 1024px) для руководителя и админа.
+   Архитектура: та же база db, те же функции расчёта и рендера, что и в мобильной
+   версии — просто другая обёртка. Раздел «Дашборд» — новый десктопный экран
+   (карточки + графики + таблицы). Остальные разделы бокового меню пока что
+   переиспользуют существующие мобильные экраны (go()), просто в более широком
+   окне рядом с сайдбаром — это осознанный мост, полноценные десктопные версии
+   этих разделов (таблицы, массовое редактирование) — следующий шаг. */
+let dsSection='dashboard';
+function isDesktopEligible(){return me&&canManage()} // ПК-версия — для руководителя и админа
+function updateShellMode(){
+  const wide=window.innerWidth>=1024;
+  const on=wide&&isDesktopEligible();
+  document.body.classList.toggle('desktop-mode',on);
+  if(on)dsGo(dsSection);else document.body.classList.remove('ds-view-dashboard');
+}
+window.addEventListener('resize',(()=>{let t;return()=>{clearTimeout(t);t=setTimeout(updateShellMode,150)}})());
+
+const DS_NAV=[
+  {id:'dashboard',lbl:'Дашборд',icon:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',mgr:true},
+  {id:'s-home',lbl:'Объекты',icon:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',mgr:true},
+  {id:'s-schedule',lbl:'Расписание',icon:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',mgr:true},
+  {id:'s-stock',lbl:'Склад',icon:'<path d="M21 8L12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/>',mgr:true},
+  {id:'s-team',lbl:'Команда',icon:'<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="18" cy="8.5" r="2.6"/><path d="M16.5 13a5.5 5.5 0 0 1 5 6.2"/>',mgr:true},
+  {id:'s-price',lbl:'Прайс и ставки',icon:'<circle cx="12" cy="12" r="9"/><path d="M9 9.5c0-1.1 1.2-2 2.7-2s2.7.9 2.7 2c0 2.5-5.4 1.5-5.4 4 0 1.1 1.2 2 2.7 2s2.7-.9 2.7-2M12 5.5v2M12 16.5v2"/>',mgr:true},
+  {id:'s-stat',lbl:'Статистика',icon:'<path d="M3 20V10M10 20V4M17 20v-7"/>',mgr:true},
+  {id:'s-feedback',lbl:'Заявки / связь',icon:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',mgr:true},
+  {id:'s-auditlog',lbl:'Журнал действий',icon:'<path d="M9 12h6M9 16h6M9 8h6"/><rect x="4" y="3" width="16" height="18" rx="2"/>',admin:true},
+];
+function renderDesktopSidebar(){
+  const box=document.getElementById('ds-user');if(!box)return; // сайдбар в DOM даже когда скрыт — можно рендерить всегда
+  if(!me)return;
+  box.innerHTML=`<div class="avatar" style="width:34px;height:34px;font-size:13px;background:${me.bg||'#333'};color:${me.c||'#fff'}">${ini(me.name)}</div>
+    <div><div class="ds-user-name">${esc(me.name)}</div><div class="ds-user-role">${esc(PERM_LBL[me.perm]||'')}</div></div>`;
+  const admin=isAdmin();
+  const fbUn=fbNewCount(),auUn=0; // журнал не имеет счётчика непрочитанного — только заявки
+  document.getElementById('ds-nav').innerHTML=DS_NAV.filter(n=>admin?true:(n.mgr&&!n.admin)).map(n=>{
+    const isActive=dsSection===n.id;
+    const bd=(n.id==='s-feedback'&&fbUn>0)?`<span class="ds-nav-badge">${fbUn>99?'99+':fbUn}</span>`:'';
+    return `<div class="ds-nav-item ${isActive?'active':''}" onclick="dsGo('${n.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${n.icon}</svg>${n.lbl}${bd}</div>`;
+  }).join('');
+}
+function dsGo(section){
+  dsSection=section;
+  if(section==='dashboard'){
+    document.body.classList.add('ds-view-dashboard');
+    renderDesktopDashboard();
+  }else{
+    document.body.classList.remove('ds-view-dashboard');
+    go(section);
+  }
+  renderDesktopSidebar();
+}
+
+/* --- Дашборд: карточки + графики + таблицы, период фильтруется --- */
+let dsChartProfit=null,dsChartMonth=null;
+let dsPeriod=90;
+function dsSetPeriod(days){dsPeriod=days;renderDesktopDashboard();}
+function renderDesktopDashboard(){
+  const box=document.getElementById('desktop-dashboard');if(!box||!me)return;
+  const trips=tripsInPeriod(dsPeriod);
+  let rev=0,exp=0,igorTotal=0;
+  const byObj={};
+  trips.forEach(t=>{const inv=calcInvoice(t),e=calcExpense(t);rev+=inv.total;exp+=e.total;
+    (byObj[t.objectId]=byObj[t.objectId]||[]).push(t);
+  });
+  const profit=rev-exp;
+  const activeObjs=db.objects.filter(o=>!o.completed);
+  const lowStock=db.stock.filter(s=>s.min>0&&availQty(s)<s.min);
+  const openTrips=db.trips.filter(t=>!t.closed);
+  db.objects.forEach(o=>{const f=calcObject(o);igorTotal+=f.igor;});
+
+  box.innerHTML=`
+    <div class="ds-title">Дашборд</div>
+    <div class="ds-sub">Обзор по всем объектам · ${PERIODS.find(p=>p.d===dsPeriod)?.l||'Всё время'}</div>
+    <div class="ds-period" id="ds-period-box"></div>
+    <div class="ds-kpi-grid">
+      <div class="ds-kpi"><div class="ds-kpi-lbl">Доход</div><div class="ds-kpi-val" style="color:var(--green)">${fmtMoney(rev)}</div></div>
+      <div class="ds-kpi"><div class="ds-kpi-lbl">Расход</div><div class="ds-kpi-val" style="color:var(--red)">${fmtMoney(exp)}</div></div>
+      <div class="ds-kpi"><div class="ds-kpi-lbl">Прибыль</div><div class="ds-kpi-val" style="color:var(--gold)">${fmtMoney(profit)}</div></div>
+      <div class="ds-kpi"><div class="ds-kpi-lbl">Личная доля (всего)</div><div class="ds-kpi-val" style="font-size:20px">${fmtMoney(igorTotal)}</div></div>
+      <div class="ds-kpi"><div class="ds-kpi-lbl">Активных объектов</div><div class="ds-kpi-val">${activeObjs.length}</div></div>
+      <div class="ds-kpi"><div class="ds-kpi-lbl">Незакрытых отчётов</div><div class="ds-kpi-val" style="color:${openTrips.length?'var(--gold)':'var(--txt)'}">${openTrips.length}</div></div>
+      <div class="ds-kpi"><div class="ds-kpi-lbl">Мало на складе</div><div class="ds-kpi-val" style="color:${lowStock.length?'var(--red)':'var(--txt)'}">${lowStock.length}</div></div>
+    </div>
+    <div class="ds-row">
+      <div class="ds-panel"><div class="ds-panel-title">Прибыль по объектам</div><canvas id="ds-chart-profit" height="230"></canvas></div>
+      <div class="ds-panel"><div class="ds-panel-title">Доход / расход по месяцам</div><canvas id="ds-chart-month" height="230"></canvas></div>
+    </div>
+    <div class="ds-row">
+      <div class="ds-panel"><div class="ds-panel-title">Объекты</div><div id="ds-objects-table"></div></div>
+      <div class="ds-panel"><div class="ds-panel-title">Последние отчёты</div><div id="ds-recent-trips"></div></div>
+    </div>`;
+
+  document.getElementById('ds-period-box').innerHTML=PERIODS.map(p=>`<div class="ds-period-btn ${dsPeriod===p.d?'active':''}" onclick="dsSetPeriod(${p.d})">${p.l}</div>`).join('');
+
+  // Таблица объектов
+  const objRows=db.objects.slice().sort((a,b)=>(b.dateEnd||'').localeCompare(a.dateEnd||'')).map(o=>{
+    const f=calcObject(o);
+    return `<tr class="clickable" onclick="dsOpenObject(${o.id})">
+      <td>${esc(o.name)}${o.completed?' <span style="color:var(--txt3);font-size:11px">(завершён)</span>':''}</td>
+      <td class="mono" style="color:var(--green)">${fmtMoney(f.rev)}</td>
+      <td class="mono" style="color:${f.profit>=0?'var(--gold)':'var(--red)'}">${fmtMoney(f.profit)}</td>
+      <td class="mono">${fmtMoney(f.igor)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('ds-objects-table').innerHTML=db.objects.length?`<table class="ds-table"><thead><tr><th>Объект</th><th>Доход</th><th>Прибыль</th><th>Личная доля</th></tr></thead><tbody>${objRows}</tbody></table>`:'<div class="empty">Объектов пока нет</div>';
+
+  // Последние отчёты
+  const recent=db.trips.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,8).map(t=>{
+    const pr=calcProfit(t);
+    return `<tr class="clickable" onclick="dsOpenTrip(${t.id})">
+      <td>${fmtDate(t.date)}</td><td>${esc(objName(t.objectId))}</td><td>${esc(t.author||'—')}</td>
+      <td class="mono" style="color:${pr>=0?'var(--green)':'var(--red)'}">${fmtMoney(pr)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('ds-recent-trips').innerHTML=db.trips.length?`<table class="ds-table"><thead><tr><th>Дата</th><th>Объект</th><th>Автор</th><th>Прибыль</th></tr></thead><tbody>${recent}</tbody></table>`:'<div class="empty">Отчётов пока нет</div>';
+
+  drawDsCharts(trips);
+}
+function dsOpenObject(id){document.body.classList.remove('ds-view-dashboard');dsSection='s-home';openObject(id);renderDesktopSidebar();}
+function dsOpenTrip(id){document.body.classList.remove('ds-view-dashboard');dsSection='s-home';openTrip(id);renderDesktopSidebar();}
+function drawDsCharts(trips){
+  if(typeof Chart==='undefined')return;
+  // Прибыль по объектам
+  const objs=db.objects.slice();
+  const labels=objs.map(o=>o.name.length>14?o.name.slice(0,13)+'…':o.name);
+  const profits=objs.map(o=>calcObject(o).profit);
+  if(dsChartProfit)dsChartProfit.destroy();
+  const c1=document.getElementById('ds-chart-profit');
+  if(c1)dsChartProfit=new Chart(c1,{type:'bar',data:{labels,datasets:[{data:profits,backgroundColor:profits.map(p=>p>=0?'rgba(232,161,60,.75)':'rgba(255,82,82,.75)'),borderRadius:5}]},
+    options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#a89a89',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#a89a89',font:{size:10}},grid:{color:'#352c23'}}}}});
+  // Доход/расход по месяцам
+  const byMonth={};
+  trips.forEach(t=>{const m=(t.date||'').slice(0,7);if(!m)return;if(!byMonth[m])byMonth[m]={rev:0,exp:0};byMonth[m].rev+=calcInvoice(t).total;byMonth[m].exp+=calcExpense(t).total;});
+  const months=Object.keys(byMonth).sort();
+  if(dsChartMonth)dsChartMonth.destroy();
+  const c2=document.getElementById('ds-chart-month');
+  if(c2)dsChartMonth=new Chart(c2,{type:'line',data:{labels:months,datasets:[
+    {label:'Доход',data:months.map(m=>byMonth[m].rev),borderColor:'#5fc77f',backgroundColor:'rgba(95,199,127,.12)',tension:.3,fill:true},
+    {label:'Расход',data:months.map(m=>byMonth[m].exp),borderColor:'#ff5252',backgroundColor:'rgba(255,82,82,.1)',tension:.3,fill:true}
+  ]},options:{plugins:{legend:{labels:{color:'#a89a89',font:{size:11}}}},scales:{x:{ticks:{color:'#a89a89',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#a89a89',font:{size:10}},grid:{color:'#352c23'}}}}});
+}
+
 
 /* ============ РАСПИСАНИЕ (заготовки на дату по всем объектам) ============ */
 function toggleSchedulePicker(){
@@ -1912,7 +2118,7 @@ async function boot(){
     if(emp){me=emp;}
     else if(session.user.email===ADMIN_EMAIL){me={name:'Администратор',role:'Разработчик',perm:'admin',c:'#ff7d4d',bg:'rgba(255,87,34,.18)',email:ADMIN_EMAIL};}
     else{await sb.auth.signOut();showOnly('s-login');return;}
-    startRealtime();renderNav();renderUserBtn();go('s-home');
+    startRealtime();renderNav();renderUserBtn();go('s-home');updateShellMode();
   }catch(e){
     console.error('boot:',e);
     if(e?.message==='PROJECT_PAUSED'){
