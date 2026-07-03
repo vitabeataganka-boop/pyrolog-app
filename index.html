@@ -47,6 +47,11 @@ body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--txt);font-
 .navbar{display:flex;border-top:1px solid var(--line);background:var(--bg2);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom)}
 .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 12px;font-size:10px;color:var(--txt3);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:color .15s;position:relative}
 .unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;line-height:1}
+.rp-panel{margin-top:8px;border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:var(--bg3);animation:slideDown .15s ease}
+.rp-item{padding:13px 15px;font-size:14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rp-item:last-child{border-bottom:none}
+.rp-item:active{background:var(--bg2)}
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
 .nav-badge{position:absolute;top:4px;right:calc(50% - 22px);min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1}
 .nav-item svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7}
 .nav-item.active{color:var(--ember2)}
@@ -380,8 +385,8 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
   <div class="scroll">
     <div><div class="lbl">Название объекта / проекта</div><input class="fval" id="no-name" placeholder="Например: Мажор, сезон 4"/></div>
     <div class="metric-grid">
-      <div><div class="lbl">Начало</div><input class="fval mono" id="no-start" type="date"/></div>
-      <div><div class="lbl">Конец</div><input class="fval mono" id="no-end" type="date"/></div>
+      <div><div class="lbl">Начало</div><input class="fval mono" id="no-start" type="date" onchange="onObjStartChange()"/></div>
+      <div><div class="lbl">Конец</div><input class="fval mono" id="no-end" type="date" onchange="onObjEndChange()"/></div>
     </div>
     <div><div class="lbl">Чей проект (влияет на распределение прибыли)</div>
       <div class="crew-grid" id="no-type-chips">
@@ -399,12 +404,6 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 <div class="screen hidden" id="s-overtime">
   <div class="topbar"><span class="back-btn" id="ot-back" onclick="openTrip(otTripId)">← Назад</span><span class="topbar-title" style="font-size:16px">Переработка</span></div>
   <div class="scroll" id="overtime-body"></div>
-</div>
-
-<!-- ===== PICK OBJECT (перед новым отчётом) ===== -->
-<div class="screen hidden" id="s-pickobj">
-  <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Отмена</span><span class="topbar-title" style="font-size:16px">В какой объект?</span></div>
-  <div class="scroll" id="pickobj-body"></div>
 </div>
 
 <!-- ===== CHAT ===== -->
@@ -522,7 +521,6 @@ function migrate(d){
   if(!d.chat||typeof d.chat!=='object')d.chat={group:[],dms:{}};
   if(!Array.isArray(d.chat.group))d.chat.group=[];
   if(!d.chat.dms||typeof d.chat.dms!=='object')d.chat.dms={};
-  if(!d.chat.reads||typeof d.chat.reads!=='object')d.chat.reads={};
 
   // 1) Нормализация позиций внутри выездов
   d.trips.forEach(t=>{
@@ -696,7 +694,7 @@ function renderNav(){
     cont.innerHTML=items.map(n=>`<div class="nav-item ${n.id===cur?'active':''}" onclick="go('${n.id}')"><svg viewBox="0 0 24 24">${n.icon}</svg>${n.lbl}${(n.id==='s-team'&&un>0)?`<span class="nav-badge">${un>99?'99+':un}</span>`:''}</div>`).join('');
   });
 }
-function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary();if(id==='s-object')renderObject(curObjId);if(id==='s-pickobj')renderPickObj();if(id==='s-chat')renderChat();if(id==='s-feedback')renderFeedback();if(id==='s-fbthread')renderFbThread();renderNav();}
+function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary();if(id==='s-object')renderObject(curObjId);if(id==='s-chat')renderChat();if(id==='s-feedback')renderFeedback();if(id==='s-fbthread')renderFbThread();renderNav();}
 
 /* ============ HOME = OBJECTS ============ */
 let curObjId=null;
@@ -729,7 +727,8 @@ function renderHome(){
   }
   document.getElementById('home-actions').innerHTML=
     (canManage()?`<button class="btn btn-primary" onclick="startNewObject()">+ Новый объект</button>`:'')+
-    `<button class="btn ${canManage()?'btn-ghost':'btn-primary'}" onclick="startReportPick()">+ Новый отчёт (выезд)</button>`+
+    `<button class="btn ${canManage()?'btn-ghost':'btn-primary'}" onclick="toggleReportPicker()">+ Новый отчёт (выезд)</button>`+
+    `<div class="rp-panel hidden" id="rp-panel"></div>`+
     (isAdmin()
       ?`<button class="btn btn-ghost" onclick="openFeedback()">🛠 Заявки пользователей${fbNewCount()?` · <span style="color:var(--ember2)">${fbNewCount()} новых</span>`:''}</button>`
       :`<button class="btn btn-ghost" onclick="openFeedback()">✍️ Обратная связь с разработчиком</button>`);
@@ -739,15 +738,28 @@ function renderHome(){
 let newObjType='igor';
 function startNewObject(){newObjType='igor';document.getElementById('no-name').value='';document.getElementById('no-note').value='';
   const today=new Date().toISOString().split('T')[0];document.getElementById('no-start').value=today;document.getElementById('no-end').value=today;
+  document.getElementById('no-end').min=today;
   document.querySelectorAll('#no-type-chips .chip').forEach(c=>c.className=c.dataset.type==='igor'?'chip chip-em':'chip chip-off');
   updateObjHint();go('s-newobj');}
+/* Дата конца не может быть раньше даты начала — держим оба поля синхронными */
+function onObjStartChange(){
+  const s=document.getElementById('no-start'),e=document.getElementById('no-end');
+  e.min=s.value;
+  if(s.value&&e.value&&e.value<s.value)e.value=s.value;
+}
+function onObjEndChange(){
+  const s=document.getElementById('no-start'),e=document.getElementById('no-end');
+  if(s.value&&e.value&&e.value<s.value){e.value=s.value;showToast('Дата конца не может быть раньше даты начала','err',2500);}
+}
 function pickObjType(el){newObjType=el.dataset.type;document.querySelectorAll('#no-type-chips .chip').forEach(c=>c.className='chip chip-off');el.className='chip '+(newObjType==='igor'?'chip-em':'chip-blue');updateObjHint();}
 function updateObjHint(){const r=db.rates;document.getElementById('no-type-hint').textContent=newObjType==='igor'
   ?`Проект Игоря: ${r.igorEquipPct}% с прибыли оборуд. + ${r.igorConsPct}% с расходников + ${r.igorNetPct}% чистой прибыли.`
   :`Проект генерального: Игорю только ${r.generalNetPct}% чистой прибыли, остальное компании.`;}
 function saveNewObject(){const name=document.getElementById('no-name').value.trim();if(!name){shake('no-name');return}
+  let ds=document.getElementById('no-start').value,de=document.getElementById('no-end').value;
+  if(ds&&de&&de<ds)de=ds; // защита на случай ручного ввода даты, минуя onchange
   const id=db.objects.length?Math.max(...db.objects.map(o=>o.id))+1:1;
-  db.objects.push({id,name,type:newObjType,dateStart:document.getElementById('no-start').value,dateEnd:document.getElementById('no-end').value,note:document.getElementById('no-note').value.trim(),planItems:[]});
+  db.objects.push({id,name,type:newObjType,dateStart:ds,dateEnd:de,note:document.getElementById('no-note').value.trim(),planItems:[]});
   saveDB(db);openObject(id);}
 
 /* --- Детализация объекта --- */
@@ -797,22 +809,22 @@ function renderObject(id){
 function editObjType(id){const o=db.objects.find(x=>x.id===id);if(!o)return;o.type=o.type==='igor'?'general':'igor';saveDB(db);renderObject(id);}
 function delObject(id){const trips=objTrips(id);if(!confirm('Удалить объект'+(trips.length?' и все его отчёты ('+trips.length+')?':'?')))return;db.trips=db.trips.filter(t=>t.objectId!==id);db.objects=db.objects.filter(o=>o.id!==id);saveDB(db);go('s-home');}
 
-/* --- Выбор объекта перед новым отчётом (если зашли не из объекта) --- */
-function startReportPick(){
-  const objs=visibleObjects();
-  if(!objs.length){if(canManage()){alert('Сначала создай объект');startNewObject();}else alert('Нет доступных объектов — обратись к руководителю');return;}
+/* --- Выбор объекта перед новым отчётом: раскрывающийся список прямо на месте ---
+   ВАЖНО: используем ВСЕ объекты (db.objects), а не visibleObjects() — иначе сотрудник
+   не может создать первый отчёт в новом объекте (он появляется в "своих" только
+   после того, как там уже есть его отчёт — замкнутый круг). */
+function toggleReportPicker(){
+  const objs=db.objects.slice();
+  if(!objs.length){if(canManage()){alert('Сначала создай объект');startNewObject();}else alert('Объектов пока нет — обратись к руководителю');return;}
   if(objs.length===1){startReport(objs[0].id);return;}
-  go('s-pickobj');
-}
-function renderPickObj(){
-  const objs=visibleObjects().slice().reverse();
-  document.getElementById('pickobj-body').innerHTML=objs.map(o=>{
-    const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 10px;font-size:10px">Игорь</span>':'<span class="chip chip-blue" style="padding:3px 10px;font-size:10px">Генеральный</span>';
-    const trips=objTrips(o.id);
-    return `<div class="card" style="margin-bottom:9px" onclick="startReport(${o.id})">
-      <div class="card-top"><div><div class="card-name">${esc(o.name)}</div><div class="card-sub">отчётов: ${trips.length}</div></div>${badge}</div>
-    </div>`;
+  const panel=document.getElementById('rp-panel');if(!panel)return;
+  const willOpen=panel.classList.contains('hidden');
+  if(!willOpen){panel.classList.add('hidden');panel.innerHTML='';return;}
+  panel.innerHTML=objs.slice().reverse().map(o=>{
+    const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 9px;font-size:10px">Игорь</span>':'<span class="chip chip-blue" style="padding:3px 9px;font-size:10px">Генеральный</span>';
+    return `<div class="rp-item" onclick="startReport(${o.id})"><span>${esc(o.name)}</span>${badge}</div>`;
   }).join('');
+  panel.classList.remove('hidden');
 }
 function openTrip(id){
   const t=db.trips.find(x=>x.id===id);if(!t)return;curObjId=t.objectId;
@@ -1104,10 +1116,12 @@ function genPass(){
 }
 
 /* ============ UNREAD TRACKING (общее для чата и заявок) ============ */
-/* db.chat.reads[myEmail][key] = ts последнего прочтения. key: 'group' | dmKey(...) | 'fb:'+id */
-function readsFor(d){if(!d.chat.reads)d.chat.reads={};if(!d.chat.reads[me.email])d.chat.reads[me.email]={};return d.chat.reads[me.email]}
-function lastRead(key){return readsFor(db)[key]||0}
-function markRead(key){readsFor(db)[key]=Date.now();saveDB(db);}
+/* Храним "последнее прочтение" ЛОКАЛЬНО на устройстве (localStorage), а не в общей
+   синхронизируемой базе — иначе отметка о прочтении теряется в гонке с debounce-сохранением
+   (например, если сразу после открытия чата отправить сообщение). */
+function readKey(chatKey){return 'pyrolog_read_'+(me?me.email:'anon')+'_'+chatKey}
+function lastRead(key){try{return parseInt(localStorage.getItem(readKey(key))||'0',10)||0}catch(e){return 0}}
+function markRead(key){try{localStorage.setItem(readKey(key),String(Date.now()))}catch(e){}}
 function unreadIn(arr,key){const lr=lastRead(key);return arr.filter(m=>m.from!==me.email&&(m.ts||0)>lr).length}
 function badge(n){return n>0?`<span class="unread-badge">${n>99?'99+':n}</span>`:''}
 function chatUnread(key){return unreadIn(chatArr(db,key),key)}
