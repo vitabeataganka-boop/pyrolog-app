@@ -663,7 +663,7 @@ function migrate(d){
     }
   });
   // 4) Статус «завершён» — по умолчанию все объекты активны; расписание (заготовки на дату)
-  d.objects.forEach(o=>{if(o.completed===undefined)o.completed=false;if(!Array.isArray(o.plan))o.plan=[];o.plan.forEach(p=>{if(p.ts===undefined)p.ts=0;});});
+  d.objects.forEach(o=>{if(o.completed===undefined)o.completed=false;if(!Array.isArray(o.plan))o.plan=[];o.plan.forEach(p=>{if(p.ts===undefined)p.ts=0;if(p.driver===undefined)p.driver='';if(p.transportId===undefined)p.transportId=null;if(p.km===undefined)p.km=0;if(p.driverRate===undefined)p.driverRate=0;});});
   return d;
 }
 
@@ -678,18 +678,33 @@ async function loadDB(){
   db=migrate(data.data);
 }
 let _st=null;
+let _pendingSave=false; // true, пока есть несохранённые локальные правки — realtime не должен их затирать
 function saveDB(d){
   clearTimeout(_st);
+  _pendingSave=true;
   _st=setTimeout(async()=>{
     try{
       const {error}=await sb.from('app_state').update({data:db,updated_at:new Date().toISOString()}).eq('id',1);
       if(error)throw error;
+      _pendingSave=false;
     }catch(e){
       console.warn('save error',e);
       const msg=(e?.message||'').toLowerCase();
       if(e?.status===401||msg.includes('jwt')||msg.includes('session')){
+        // токен протух — часто просто потому что телефон был заблокирован/приложение свёрнуто.
+        // Пробуем один раз обновить сессию и повторить сохранение, прежде чем выкидывать
+        // человека из приложения с несохранёнными правками (это и было похоже на "вылет").
+        try{
+          const{error:refreshErr}=await sb.auth.refreshSession();
+          if(!refreshErr){
+            const retry=await sb.from('app_state').update({data:db,updated_at:new Date().toISOString()}).eq('id',1);
+            if(!retry.error){_pendingSave=false;return;} // получилось восстановиться — работаем дальше как ни в чём не бывало
+          }
+        }catch(e2){/* не получилось — переходим к принудительному выходу ниже */}
+        _pendingSave=false;
         showToast('Сессия истекла — войди снова','err',0);setTimeout(logout,2500);return;
       }
+      _pendingSave=false;
       showToast('Не сохранено — нет связи','err',0);
     }
   },200);
@@ -759,6 +774,7 @@ async function doLogin(){
   if(emp){me=emp;}
   else if(data.user.email===ADMIN_EMAIL){me={name:'Администратор',role:'Разработчик',perm:'admin',c:'#ff7d4d',bg:'rgba(255,87,34,.18)',email:ADMIN_EMAIL};}
   else{setErr('login-error','Email не найден в списке сотрудников');await sb.auth.signOut();btn.disabled=false;btn.textContent='Войти';return;}
+  btn.disabled=false;btn.textContent='Войти'; // сбрасываем состояние кнопки — иначе после выхода экран входа снова покажется с зависшим "Входим..."
   startRealtime();renderNav();renderUserBtn();go('s-home');updateShellMode();
 }
 
@@ -766,6 +782,7 @@ async function logout(){
   if(_realtimeSub){try{sb.removeChannel(_realtimeSub);}catch(e){}  _realtimeSub=null;}
   await sb.auth.signOut();me=null;showOnly('s-login');
   document.body.classList.remove('desktop-mode','ds-view-dashboard');
+  const btn=document.getElementById('login-btn');if(btn){btn.disabled=false;btn.textContent='Войти';} // на случай если кнопка осталась в состоянии "Входим..." с прошлого раза
   document.getElementById('login-email').value='';
   document.getElementById('login-pass').value='';
   setErr('login-error','');
@@ -785,6 +802,7 @@ function startRealtime(){
   _realtimeSub=sb.channel('app_state_changes')
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'app_state'},payload=>{
       if(!payload.new||!payload.new.data)return;
+      if(_pendingSave)return; // есть несохранённые локальные правки — не затираем их чужим/устаревшим снимком
       const fresh=payload.new.data;
       if(JSON.stringify(fresh)===JSON.stringify(db))return;
       db=migrate(fresh);
@@ -1011,6 +1029,7 @@ function renderSchedule(){
     return `<div class="card flat" style="margin-bottom:9px">
       <div class="card-top"><div><div class="card-name" style="font-size:15px">${fmtDate(p.date)}</div><div class="card-sub">${esc(p.objName)}${p.objCompleted?' <span style="color:var(--txt3)">(завершён)</span>':''}</div></div></div>
       <div class="eq-meta" style="margin-top:6px">Бригада: ${p.crew&&p.crew.length?esc(p.crew.join(', ')):'не назначена'}</div>
+      ${(p.driver||p.transportId||p.km)?`<div class="eq-meta" style="margin-top:3px">${p.driver?'Водитель: '+esc(p.driver):''}${p.transportId?' · '+esc((db.transport||[]).find(x=>x.id===p.transportId)?.name||''):''}${p.km?' · '+p.km+' км':''}</div>`:''}
       <div class="eq-meta" style="margin-top:3px">Оборудование: ${itemsStr}</div>
       ${p.note?`<div class="eq-meta" style="margin-top:3px">Заметка: ${esc(p.note)}</div>`:''}
       <div style="display:flex;gap:8px;margin-top:10px">
@@ -1306,6 +1325,7 @@ function startReportFromPlan(objId,planId){
   const p=(o.plan||[]).find(x=>x.id===planId);if(!p)return;
   startReport(objId);
   draft.date=p.date;draft.crew=[...(p.crew||[])];draft.items={...(p.items||{})};
+  draft.driver=p.driver||'';draft.transportId=p.transportId||'';draft.km=p.km||0;draft.driverRate=p.driverRate||0;
   document.getElementById('n-date').value=draft.date;
   o.plan=(o.plan||[]).filter(x=>x.id!==planId);
   saveDB(db);
@@ -1397,7 +1417,7 @@ function submitTrip(){draft.notes=draft.mode==='plan'?'':document.getElementById
 function saveDraftAsPlan(){
   const o=db.objects.find(x=>x.id===draft.objectId);if(!o){go('s-home');return}
   const pid=o.plan.length?Math.max(...o.plan.map(p=>p.id))+1:1;
-  o.plan.push({id:pid,date:draft.date,crew:[...draft.crew],items:{...draft.items},note:'',ts:Date.now()});
+  o.plan.push({id:pid,date:draft.date,crew:[...draft.crew],items:{...draft.items},driver:draft.driver||'',transportId:draft.transportId||null,km:draft.km||0,driverRate:draft.driverRate||0,note:'',ts:Date.now()});
   logAction('Добавлена заготовка в расписание',o.name+' · '+fmtDate(draft.date));
   saveDB(db);
   showToast('Добавлено в расписание','ok',2200);
@@ -1443,12 +1463,12 @@ function renderStock(){
       html+=`<div class="card flat" style="margin-bottom:8px" ${canManage()?`onclick="openEditStock(${s._i})"`:''}>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
           <div style="flex:1"><div style="font-size:15px">${esc(s.name)}${s.returnable?'<span class="tag tag-equip">многоразовое</span>':''}${s.type==='ammo'?'<span class="tag tag-ammo">учёт</span>':''}</div>
-            <div class="stock-wrap"><div class="stock-bar" style="width:${pct}%;background:${color}"></div></div>
+            <div class="stock-wrap"><div class="stock-bar" id="stock-bar-${s._i}" style="width:${pct}%;background:${color}"></div></div>
             <div class="eq-meta" style="margin-top:5px">мин: ${s.min} ${s.unit}${out>0?` · <span style="color:var(--gold)" onclick="event.stopPropagation();showHolders('${s.name.replace(/'/g,"\\'")}')">в поле: ${out} (кто держит →)</span>`:''}${canManage()&&s.price?` · цена: ${fmtMoney(s.price)} ₽`:''}</div>
             ${s.note?`<div class="eq-meta" style="margin-top:3px;color:var(--txt3)">${esc(s.note)}</div>`:''}</div>
           <div style="text-align:right">
-            <div class="mono" style="font-size:16px;font-weight:700">${avail}${s.returnable?`<span style="color:var(--txt3)">/${s.qty}</span>`:''} ${s.unit}</div>
-            <div style="font-size:11px;color:${color};text-transform:uppercase;letter-spacing:.5px">${status}</div></div>
+            <div class="mono" id="stock-qty-${s._i}" style="font-size:16px;font-weight:700">${avail}${s.returnable?`<span style="color:var(--txt3)">/${s.qty}</span>`:''} ${s.unit}</div>
+            <div id="stock-status-${s._i}" style="font-size:11px;color:${color};text-transform:uppercase;letter-spacing:.5px">${status}</div></div>
         </div>
         ${canManage()?`<div class="eq-controls" style="margin-top:10px;justify-content:flex-end" onclick="event.stopPropagation()">
           <button class="eq-btn" onclick="stockQty(${s._i},-1)">−</button>
@@ -1471,7 +1491,24 @@ function showHolders(name){
     openTrip(holders[0].id);
   }
 }
-function stockQty(i,d){db.stock[i].qty=Math.max(0,db.stock[i].qty+d);saveDB(db);renderStock()}
+function stockQty(i,d){
+  const s=db.stock[i];if(!s)return;
+  s.qty=Math.max(0,s.qty+d);
+  saveDB(db);
+  // точечно обновляем только эту карточку — полная перерисовка списка на каждый клик
+  // и была причиной подлагивания/потери клика при быстром нажатии +/-
+  const out=outQty(s.name);const avail=availQty(s);
+  const danger=s.min>0&&avail<s.min;const warn=s.min>0&&avail<s.min*1.5&&!danger;
+  const color=danger?'var(--red)':warn?'var(--gold)':'var(--green)';
+  const status=s.min===0?'учёт':danger?'мало!':warn?'средне':'норма';
+  const pct=Math.min(100,Math.round(avail/Math.max(s.min*2,avail,1)*100));
+  const qtyEl=document.getElementById('stock-qty-'+i);
+  if(qtyEl)qtyEl.innerHTML=avail+(s.returnable?`<span style="color:var(--txt3)">/${s.qty}</span>`:'')+' '+s.unit;
+  const stEl=document.getElementById('stock-status-'+i);
+  if(stEl){stEl.textContent=status;stEl.style.color=color;}
+  const barEl=document.getElementById('stock-bar-'+i);
+  if(barEl){barEl.style.width=pct+'%';barEl.style.background=color;}
+}
 function delStock(i){const nm=db.stock[i]&&db.stock[i].name;if(!confirm('Удалить «'+nm+'» со склада?'))return;logAction('Удалена позиция склада',nm);db.stock.splice(i,1);saveDB(db);renderStock()}
 let editingStockIdx=null;
 function openAddStock(){
