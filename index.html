@@ -47,8 +47,9 @@ body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--txt);font-
 .navbar{display:flex;border-top:1px solid var(--line);background:var(--bg2);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom)}
 .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 12px;font-size:10px;color:var(--txt3);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:color .15s;position:relative}
 .unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;line-height:1}
-.rp-panel{margin-top:8px;border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:var(--bg3);animation:slideDown .15s ease}
-.rp-item{padding:13px 15px;font-size:14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rp-panel{margin-top:8px;padding:10px;border:1px solid var(--line2);border-radius:12px;background:var(--bg3);animation:slideDown .15s ease}
+.rp-panel .fval{margin-bottom:2px}
+.rp-item{padding:12px 6px;font-size:14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .rp-item:last-child{border-bottom:none}
 .rp-item:active{background:var(--bg2)}
 @keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
@@ -556,6 +557,8 @@ function migrate(d){
       t.objectId=o.id;
     }
   });
+  // 4) Статус «завершён» — по умолчанию все объекты активны
+  d.objects.forEach(o=>{if(o.completed===undefined)o.completed=false;});
   return d;
 }
 
@@ -718,9 +721,10 @@ function renderHome(){
     list.innerHTML=objs.slice().reverse().map(o=>{
       const trips=objTrips(o.id);const fin=canManage()?calcObject(o):null;
       const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 10px;font-size:10px">Игорь</span>':'<span class="chip chip-blue" style="padding:3px 10px;font-size:10px">Генеральный</span>';
+      const doneTag=o.completed?'<span class="chip chip-off" style="padding:3px 10px;font-size:10px">завершён</span>':'';
       const dates=o.dateStart?fmtDate(o.dateStart)+(o.dateEnd&&o.dateEnd!==o.dateStart?' – '+fmtDate(o.dateEnd):''):'';
-      return `<div class="card" style="margin-bottom:9px" onclick="openObject(${o.id})">
-        <div class="card-top"><div><div class="card-name">${esc(o.name)}</div><div class="card-sub">${dates} · отчётов: ${trips.length}</div></div>${badge}</div>
+      return `<div class="card" style="margin-bottom:9px;${o.completed?'opacity:.6':''}" onclick="openObject(${o.id})">
+        <div class="card-top"><div><div class="card-name">${esc(o.name)}</div><div class="card-sub">${dates} · отчётов: ${trips.length}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${badge}${doneTag}</div></div>
         ${fin?`<div class="sep" style="margin:9px 0"></div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--txt2)"><span>Прибыль: <b class="mono" style="color:${fin.profit>=0?'var(--green)':'var(--red)'}">${fmtMoney(fin.profit)} ₽</b></span><span>Игорь: <b class="mono" style="color:var(--gold)">${fmtMoney(fin.igor)} ₽</b></span></div>`:''}
       </div>`;
     }).join('');
@@ -728,7 +732,10 @@ function renderHome(){
   document.getElementById('home-actions').innerHTML=
     (canManage()?`<button class="btn btn-primary" onclick="startNewObject()">+ Новый объект</button>`:'')+
     `<button class="btn ${canManage()?'btn-ghost':'btn-primary'}" onclick="toggleReportPicker()">+ Новый отчёт (выезд)</button>`+
-    `<div class="rp-panel hidden" id="rp-panel"></div>`+
+    `<div class="rp-panel hidden" id="rp-panel">
+       <input class="fval" id="rp-search" placeholder="Введите название объекта..." oninput="renderRpResults()" autocomplete="off"/>
+       <div id="rp-results"></div>
+     </div>`+
     (isAdmin()
       ?`<button class="btn btn-ghost" onclick="openFeedback()">🛠 Заявки пользователей${fbNewCount()?` · <span style="color:var(--ember2)">${fbNewCount()} новых</span>`:''}</button>`
       :`<button class="btn btn-ghost" onclick="openFeedback()">✍️ Обратная связь с разработчиком</button>`);
@@ -759,7 +766,7 @@ function saveNewObject(){const name=document.getElementById('no-name').value.tri
   let ds=document.getElementById('no-start').value,de=document.getElementById('no-end').value;
   if(ds&&de&&de<ds)de=ds; // защита на случай ручного ввода даты, минуя onchange
   const id=db.objects.length?Math.max(...db.objects.map(o=>o.id))+1:1;
-  db.objects.push({id,name,type:newObjType,dateStart:ds,dateEnd:de,note:document.getElementById('no-note').value.trim(),planItems:[]});
+  db.objects.push({id,name,type:newObjType,dateStart:ds,dateEnd:de,note:document.getElementById('no-note').value.trim(),planItems:[],completed:false});
   saveDB(db);openObject(id);}
 
 /* --- Детализация объекта --- */
@@ -770,8 +777,10 @@ function renderObject(id){
   const trips=objTrips(id).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   const fin=canManage()?calcObject(o):null;
   const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:4px 12px">Проект Игоря</span>':'<span class="chip chip-blue" style="padding:4px 12px">Проект генерального</span>';
+  const doneBadge=o.completed?'<span class="chip chip-off" style="padding:4px 12px">завершён</span>':'';
   const dates=o.dateStart?fmtDate(o.dateStart)+(o.dateEnd&&o.dateEnd!==o.dateStart?' – '+fmtDate(o.dateEnd):''):'—';
-  let html=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badge}<span style="font-size:12px;color:var(--txt2)">${dates}</span>${canManage()?`<button class="eq-btn" style="width:auto;padding:0 10px;font-size:11px;text-transform:uppercase;margin-left:auto" onclick="editObjType(${id})">сменить тип</button>`:''}</div>`;
+  let html=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${badge}${doneBadge}<span style="font-size:12px;color:var(--txt2)">${dates}</span></div>`;
+  if(canManage())html+=`<div style="display:flex;gap:8px;margin-top:8px"><button class="eq-btn" style="width:auto;padding:0 10px;font-size:11px;text-transform:uppercase" onclick="editObjType(${id})">сменить тип</button><button class="eq-btn" style="width:auto;padding:0 10px;font-size:11px;text-transform:uppercase" onclick="toggleObjCompleted(${id})">${o.completed?'возобновить':'завершить объект'}</button></div>`;
   if(o.note)html+=`<div class="card flat"><div class="eq-meta">заметка</div><div style="font-size:13px;color:var(--txt2);margin-top:3px">${esc(o.note)}</div></div>`;
 
   if(fin){
@@ -807,24 +816,40 @@ function renderObject(id){
   document.getElementById('object-body').innerHTML=html;
 }
 function editObjType(id){const o=db.objects.find(x=>x.id===id);if(!o)return;o.type=o.type==='igor'?'general':'igor';saveDB(db);renderObject(id);}
+function toggleObjCompleted(id){const o=db.objects.find(x=>x.id===id);if(!o)return;o.completed=!o.completed;saveDB(db);renderObject(id);}
 function delObject(id){const trips=objTrips(id);if(!confirm('Удалить объект'+(trips.length?' и все его отчёты ('+trips.length+')?':'?')))return;db.trips=db.trips.filter(t=>t.objectId!==id);db.objects=db.objects.filter(o=>o.id!==id);saveDB(db);go('s-home');}
 
-/* --- Выбор объекта перед новым отчётом: раскрывающийся список прямо на месте ---
+/* --- Выбор объекта перед новым отчётом: поле с автодополнением ---
    ВАЖНО: используем ВСЕ объекты (db.objects), а не visibleObjects() — иначе сотрудник
    не может создать первый отчёт в новом объекте (он появляется в "своих" только
-   после того, как там уже есть его отчёт — замкнутый круг). */
+   после того, как там уже есть его отчёт — замкнутый круг).
+   По умолчанию (пустое поле) показываем только активные объекты — завершённые
+   не подсвечиваем, чтобы не мешали. Но если ввести буквы вручную — ищем среди ВСЕХ,
+   включая завершённые, на случай если нужно добавить отчёт задним числом. */
 function toggleReportPicker(){
   const objs=db.objects.slice();
   if(!objs.length){if(canManage()){alert('Сначала создай объект');startNewObject();}else alert('Объектов пока нет — обратись к руководителю');return;}
   if(objs.length===1){startReport(objs[0].id);return;}
   const panel=document.getElementById('rp-panel');if(!panel)return;
   const willOpen=panel.classList.contains('hidden');
-  if(!willOpen){panel.classList.add('hidden');panel.innerHTML='';return;}
-  panel.innerHTML=objs.slice().reverse().map(o=>{
-    const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 9px;font-size:10px">Игорь</span>':'<span class="chip chip-blue" style="padding:3px 9px;font-size:10px">Генеральный</span>';
-    return `<div class="rp-item" onclick="startReport(${o.id})"><span>${esc(o.name)}</span>${badge}</div>`;
-  }).join('');
+  if(!willOpen){panel.classList.add('hidden');return;}
+  const inp=document.getElementById('rp-search');inp.value='';
   panel.classList.remove('hidden');
+  renderRpResults();
+  setTimeout(()=>inp.focus(),50);
+}
+function renderRpResults(){
+  const q=(document.getElementById('rp-search').value||'').toLowerCase().trim();
+  let objs=db.objects.slice();
+  objs=q?objs.filter(o=>o.name.toLowerCase().includes(q)):objs.filter(o=>!o.completed);
+  objs=objs.slice().reverse();
+  const box=document.getElementById('rp-results');
+  if(!objs.length){box.innerHTML=`<div class="empty" style="padding:12px 0">${q?'Ничего не найдено':'Активных объектов нет — попробуй ввести название'}</div>`;return;}
+  box.innerHTML=objs.map(o=>{
+    const tbadge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 9px;font-size:10px">Игорь</span>':'<span class="chip chip-blue" style="padding:3px 9px;font-size:10px">Генеральный</span>';
+    const doneTag=o.completed?'<span class="chip chip-off" style="padding:3px 9px;font-size:10px">завершён</span>':'';
+    return `<div class="rp-item" onclick="startReport(${o.id})"><span>${esc(o.name)}</span><span style="display:flex;gap:6px;flex-shrink:0">${tbadge}${doneTag}</span></div>`;
+  }).join('');
 }
 function openTrip(id){
   const t=db.trips.find(x=>x.id===id);if(!t)return;curObjId=t.objectId;
