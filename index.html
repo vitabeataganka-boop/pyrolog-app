@@ -46,6 +46,8 @@ body{font-family:'Oswald',sans-serif;background:var(--bg);color:var(--txt);font-
 .scroll::-webkit-scrollbar{width:0}
 .navbar{display:flex;border-top:1px solid var(--line);background:var(--bg2);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom)}
 .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 0 12px;font-size:10px;color:var(--txt3);cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:color .15s;position:relative}
+.unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;line-height:1}
+.nav-badge{position:absolute;top:4px;right:calc(50% - 22px);min-width:15px;height:15px;padding:0 3px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1}
 .nav-item svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7}
 .nav-item.active{color:var(--ember2)}
 .nav-item.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:28px;height:2px;background:var(--ember);border-radius:0 0 2px 2px;box-shadow:0 0 8px var(--ember)}
@@ -399,6 +401,12 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
   <div class="scroll" id="overtime-body"></div>
 </div>
 
+<!-- ===== PICK OBJECT (перед новым отчётом) ===== -->
+<div class="screen hidden" id="s-pickobj">
+  <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Отмена</span><span class="topbar-title" style="font-size:16px">В какой объект?</span></div>
+  <div class="scroll" id="pickobj-body"></div>
+</div>
+
 <!-- ===== CHAT ===== -->
 <div class="screen hidden" id="s-chat">
   <div class="topbar"><span class="back-btn" onclick="go('s-team')">← Назад</span><span class="topbar-title" id="chat-title" style="font-size:16px"></span><span class="topbar-sub" id="chat-callbtn"></span></div>
@@ -413,6 +421,17 @@ input[type=date].fval,input[type=number].fval{font-family:'JetBrains Mono',monos
 <div class="screen hidden" id="s-feedback">
   <div class="topbar"><span class="back-btn" onclick="go('s-home')">← Назад</span><span class="topbar-title" style="font-size:16px" id="fb-title">Обратная связь</span></div>
   <div class="scroll" id="feedback-body"></div>
+</div>
+
+<!-- ===== FEEDBACK THREAD ===== -->
+<div class="screen hidden" id="s-fbthread">
+  <div class="topbar"><span class="back-btn" onclick="go('s-feedback')">← Назад</span><span class="topbar-title" id="fbt-title" style="font-size:16px"></span></div>
+  <div id="fbt-status"></div>
+  <div class="scroll" id="fbt-body" style="gap:8px;justify-content:flex-end"></div>
+  <div style="display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:var(--bg2);padding-bottom:max(10px,env(safe-area-inset-bottom))">
+    <input class="fval" id="fbt-input" placeholder="Сообщение..." style="flex:1" onkeydown="if(event.key==='Enter')sendFbMsg()"/>
+    <button class="btn btn-primary" style="width:auto;padding:0 18px" onclick="sendFbMsg()">→</button>
+  </div>
 </div>
 
 </div>
@@ -493,9 +512,17 @@ function migrate(d){
   if(!Array.isArray(d.objects))d.objects=[];
   if(!Array.isArray(d.trips))d.trips=[];
   if(!Array.isArray(d.feedback))d.feedback=[];
+  d.feedback.forEach(f=>{
+    if(!Array.isArray(f.messages)){
+      f.messages=[{from:f.from,fromName:f.fromName||'',text:f.text||'',ts:f.ts||Date.now()}];
+      if(f.reply)f.messages.push({from:ADMIN_EMAIL,fromName:'Администратор',text:f.reply,ts:(f.ts||Date.now())+1});
+    }
+    if(!f.status)f.status='new';
+  });
   if(!d.chat||typeof d.chat!=='object')d.chat={group:[],dms:{}};
   if(!Array.isArray(d.chat.group))d.chat.group=[];
   if(!d.chat.dms||typeof d.chat.dms!=='object')d.chat.dms={};
+  if(!d.chat.reads||typeof d.chat.reads!=='object')d.chat.reads={};
 
   // 1) Нормализация позиций внутри выездов
   d.trips.forEach(t=>{
@@ -662,14 +689,14 @@ setInterval(()=>{
 
 
 function renderNav(){
-  const items=navItems();
+  const items=navItems();const un=totalUnread();
   ['nav-home','nav-stock','nav-team','nav-price','nav-stat'].forEach(nid=>{
     const cont=document.getElementById(nid);if(!cont)return;
     const cur=nid.replace('nav-','s-');
-    cont.innerHTML=items.map(n=>`<div class="nav-item ${n.id===cur?'active':''}" onclick="go('${n.id}')"><svg viewBox="0 0 24 24">${n.icon}</svg>${n.lbl}</div>`).join('');
+    cont.innerHTML=items.map(n=>`<div class="nav-item ${n.id===cur?'active':''}" onclick="go('${n.id}')"><svg viewBox="0 0 24 24">${n.icon}</svg>${n.lbl}${(n.id==='s-team'&&un>0)?`<span class="nav-badge">${un>99?'99+':un}</span>`:''}</div>`).join('');
   });
 }
-function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary();if(id==='s-object')renderObject(curObjId);if(id==='s-chat')renderChat();if(id==='s-feedback')renderFeedback()}
+function go(id){curScreen=id;document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));const el=document.getElementById(id);el.classList.remove('hidden');el.style.animation='none';el.offsetHeight;el.style.animation='';if(id==='s-home')renderHome();if(id==='s-stock')renderStock();if(id==='s-team')renderTeam();if(id==='s-price')renderPrice();if(id==='s-stat')renderStat();if(id==='s-new4')renderSummary();if(id==='s-object')renderObject(curObjId);if(id==='s-pickobj')renderPickObj();if(id==='s-chat')renderChat();if(id==='s-feedback')renderFeedback();if(id==='s-fbthread')renderFbThread();renderNav();}
 
 /* ============ HOME = OBJECTS ============ */
 let curObjId=null;
@@ -775,10 +802,17 @@ function startReportPick(){
   const objs=visibleObjects();
   if(!objs.length){if(canManage()){alert('Сначала создай объект');startNewObject();}else alert('Нет доступных объектов — обратись к руководителю');return;}
   if(objs.length===1){startReport(objs[0].id);return;}
-  // простой выбор через prompt-список
-  const names=objs.map((o,i)=>(i+1)+'. '+o.name).join('\n');
-  const pick=prompt('В какой объект добавить отчёт?\n\n'+names+'\n\nВведи номер:');
-  const idx=parseInt(pick)-1;if(isNaN(idx)||!objs[idx])return;startReport(objs[idx].id);
+  go('s-pickobj');
+}
+function renderPickObj(){
+  const objs=visibleObjects().slice().reverse();
+  document.getElementById('pickobj-body').innerHTML=objs.map(o=>{
+    const badge=o.type==='igor'?'<span class="chip chip-gold" style="padding:3px 10px;font-size:10px">Игорь</span>':'<span class="chip chip-blue" style="padding:3px 10px;font-size:10px">Генеральный</span>';
+    const trips=objTrips(o.id);
+    return `<div class="card" style="margin-bottom:9px" onclick="startReport(${o.id})">
+      <div class="card-top"><div><div class="card-name">${esc(o.name)}</div><div class="card-sub">отчётов: ${trips.length}</div></div>${badge}</div>
+    </div>`;
+  }).join('');
 }
 function openTrip(id){
   const t=db.trips.find(x=>x.id===id);if(!t)return;curObjId=t.objectId;
@@ -994,7 +1028,8 @@ function saveStock(){
 function renderTeam(){
   document.getElementById('team-role').textContent=canManage()?'режим управления':'связь';
   let html='';
-  html+=`<button class="btn btn-primary" onclick="openChat('group','Общий чат бригады')"><span class="fab-add">💬 Общий чат бригады</span></button>`;
+  const gUn=chatUnread('group');
+  html+=`<button class="btn btn-primary" onclick="openChat('group','Общий чат бригады')"><span class="fab-add" style="display:inline-flex;align-items:center;gap:8px">💬 Общий чат бригады${badge(gUn)}</span></button>`;
   if(canManage()) html+=`<button class="btn btn-ghost" onclick="go('s-addemp')">+ Добавить сотрудника</button>`;
   html+=`<div class="section-lbl">Сотрудники</div>`;
   html+=db.employees.map((e,i)=>{
@@ -1002,8 +1037,9 @@ function renderTeam(){
     const km=mine.reduce((s,t)=>s+(t.driver===e.name?t.km:0),0);
     const isMe=me&&e.email===me.email;
     const tel=(e.phone||'').replace(/[^0-9+]/g,'');
+    const dmUn=(!isMe&&e.email)?chatUnread(dmKey(me.email,e.email)):0;
     const callBtn=tel?`<a href="tel:${tel}" class="chip chip-green" style="text-decoration:none;padding:6px 12px">📞 Позвонить</a>`:(canManage()?`<span class="chip chip-off" onclick="setPhone(${i})" style="padding:6px 12px">＋ телефон</span>`:'');
-    const msgBtn=isMe?'':`<span class="chip chip-blue" style="padding:6px 12px" onclick="openDM('${e.email}','${e.name.replace(/'/g,"\\'")}')">✉️ Написать</span>`;
+    const msgBtn=isMe?'':`<span class="chip chip-blue" style="padding:6px 12px;display:inline-flex;align-items:center;gap:6px" onclick="openDM('${e.email}','${e.name.replace(/'/g,"\\'")}')">✉️ Написать${badge(dmUn)}</span>`;
     return `<div class="card flat" style="margin-bottom:9px">
       <div style="display:flex;align-items:center;gap:11px">
         <div class="avatar" style="width:40px;height:40px;font-size:15px;background:${e.bg};color:${e.c}">${ini(e.name)}</div>
@@ -1067,6 +1103,24 @@ function genPass(){
   setErr('ae-error','');
 }
 
+/* ============ UNREAD TRACKING (общее для чата и заявок) ============ */
+/* db.chat.reads[myEmail][key] = ts последнего прочтения. key: 'group' | dmKey(...) | 'fb:'+id */
+function readsFor(d){if(!d.chat.reads)d.chat.reads={};if(!d.chat.reads[me.email])d.chat.reads[me.email]={};return d.chat.reads[me.email]}
+function lastRead(key){return readsFor(db)[key]||0}
+function markRead(key){readsFor(db)[key]=Date.now();saveDB(db);}
+function unreadIn(arr,key){const lr=lastRead(key);return arr.filter(m=>m.from!==me.email&&(m.ts||0)>lr).length}
+function badge(n){return n>0?`<span class="unread-badge">${n>99?'99+':n}</span>`:''}
+function chatUnread(key){return unreadIn(chatArr(db,key),key)}
+function fbUnread(f){return unreadIn(f.messages||[],'fb:'+f.id)}
+function totalUnread(){
+  if(!me)return 0;
+  let n=chatUnread('group');
+  db.employees.forEach(e=>{if(e.email&&e.email!==me.email)n+=chatUnread(dmKey(me.email,e.email))});
+  if(isAdmin())(db.feedback||[]).forEach(f=>n+=fbUnread(f));
+  else (db.feedback||[]).filter(f=>f.from===me.email).forEach(f=>n+=fbUnread(f));
+  return n;
+}
+
 /* ============ CHAT (общий + личные) ============ */
 let curChatKey=null,curChatTitle='';
 function dmKey(a,b){return [a,b].sort().join('|')}
@@ -1075,7 +1129,6 @@ function openChat(key,title){curChatKey=key;curChatTitle=title;go('s-chat');}
 function openDM(email,name){openChat(dmKey(me.email,email),name);}
 function renderChat(){
   document.getElementById('chat-title').textContent=curChatTitle;
-  // кнопка звонка в личном чате
   const cb=document.getElementById('chat-callbtn');cb.innerHTML='';
   if(curChatKey&&curChatKey!=='group'){
     const other=curChatKey.split('|').find(e=>e!==me.email);
@@ -1084,6 +1137,7 @@ function renderChat(){
     if(tel)cb.innerHTML=`<a href="tel:${tel}" style="text-decoration:none;color:var(--green);font-size:20px">📞</a>`;
   }
   const arr=chatArr(db,curChatKey).slice().sort((a,b)=>a.ts-b.ts);
+  markRead(curChatKey);renderNav();
   const box=document.getElementById('chat-body');
   if(!arr.length){box.innerHTML='<div class="empty" style="margin:auto">Сообщений пока нет.<br>Напиши первое.</div>';return;}
   box.innerHTML=arr.map(m=>{
@@ -1101,61 +1155,78 @@ async function sendChat(){
   inp.value='';
   const key=curChatKey;
   await pushAppend(d=>{chatArr(d,key).push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),from:me.email,fromName:me.name,text,ts:Date.now()});});
-  renderChat();
+  markRead(key);renderChat();renderNav();
 }
 
-/* ============ FEEDBACK (заявки админу-разработчику) ============ */
+/* ============ FEEDBACK (заявки — полноценная переписка с админом) ============ */
 const FB_STATUS={new:{l:'Новая',c:'chip-em'},progress:{l:'В работе',c:'chip-gold'},done:{l:'Починено',c:'chip-green'}};
+let curFbId=null;
 function openFeedback(){go('s-feedback');}
-function fbNewCount(){return (db.feedback||[]).filter(f=>f.status==='new').length}
+function fbList(){return isAdmin()?(db.feedback||[]).slice():(db.feedback||[]).filter(f=>f.from===me.email)}
+function fbNewCount(){return (db.feedback||[]).reduce((n,f)=>n+fbUnread(f),0)}
 function renderFeedback(){
   const admin=isAdmin();
   document.getElementById('fb-title').textContent=admin?'Заявки пользователей':'Обратная связь';
   let html='';
-  if(admin){
-    const list=(db.feedback||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
-    html+=`<div class="note-box note-blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>Заявки от пользователей. Меняй статус и при желании ответь — пользователь увидит ответ у себя.</span></div>`;
-    if(!list.length){html+='<div class="empty">Заявок пока нет</div>';}
-    else html+=list.map(f=>{
-      const st=FB_STATUS[f.status]||FB_STATUS.new;
-      return `<div class="card flat" style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <div><div class="card-name" style="font-size:14px">${esc(f.fromName||'')} <span style="font-size:11px;color:var(--txt3)">${PERM_LBL[f.role]||''}</span></div>
-          <div class="eq-meta">${f.date||''}</div></div>
-          <span class="chip ${st.c}" style="padding:3px 10px;font-size:10px">${st.l}</span></div>
-        <div style="font-size:14px;color:var(--txt);margin-top:8px;line-height:1.5;white-space:pre-wrap">${esc(f.text)}</div>
-        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          <span class="chip ${f.status==='new'?'chip-em':'chip-off'}" style="padding:5px 11px" onclick="setFbStatus('${f.id}','new')">Новая</span>
-          <span class="chip ${f.status==='progress'?'chip-gold':'chip-off'}" style="padding:5px 11px" onclick="setFbStatus('${f.id}','progress')">В работе</span>
-          <span class="chip ${f.status==='done'?'chip-green':'chip-off'}" style="padding:5px 11px" onclick="setFbStatus('${f.id}','done')">Починено</span>
-        </div>
-        <div style="margin-top:8px"><input class="fval" style="font-size:13px;padding:8px 10px" placeholder="Ответ пользователю..." value="${esc(f.reply||'')}" onchange="replyFb('${f.id}',this.value)"/></div>
-      </div>`;
-    }).join('');
+  if(!admin){
+    html+=`<div><div class="lbl">Новое сообщение разработчику</div><textarea class="fval" id="fb-text" placeholder="Что не работает, что неудобно, что добавить..."></textarea></div>
+      <button class="btn btn-primary" onclick="sendFeedback()">Отправить</button>
+      <div class="section-lbl">Мои заявки</div>`;
   }else{
-    html+=`<div><div class="lbl">Сообщить о проблеме / пожелании</div><textarea class="fval" id="fb-text" placeholder="Что не работает, что неудобно, что добавить..."></textarea></div>
-      <button class="btn btn-primary" onclick="sendFeedback()">Отправить разработчику</button>`;
-    const mine=(db.feedback||[]).filter(f=>f.from===me.email).sort((a,b)=>(b.ts||0)-(a.ts||0));
-    if(mine.length){
-      html+=`<div class="section-lbl">Мои заявки</div>`;
-      html+=mine.map(f=>{const st=FB_STATUS[f.status]||FB_STATUS.new;return `<div class="card flat" style="margin-bottom:9px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div class="eq-meta">${f.date||''}</div><span class="chip ${st.c}" style="padding:3px 10px;font-size:10px">${st.l}</span></div>
-        <div style="font-size:14px;margin-top:6px;white-space:pre-wrap">${esc(f.text)}</div>
-        ${f.reply?`<div class="note-box note-blue" style="margin-top:8px"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span><b>Ответ:</b> ${esc(f.reply)}</span></div>`:''}
-      </div>`}).join('');
-    }
+    html+=`<div class="note-box note-blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span>Заявки от пользователей. Открой заявку, чтобы переписываться и сменить статус.</span></div>`;
   }
+  const list=fbList().sort((a,b)=>{const la=(a.messages&&a.messages.length)?a.messages[a.messages.length-1].ts:a.ts;const lb=(b.messages&&b.messages.length)?b.messages[b.messages.length-1].ts:b.ts;return (lb||0)-(la||0)});
+  if(!list.length){html+='<div class="empty">Заявок пока нет</div>';}
+  else html+=list.map(f=>{
+    const st=FB_STATUS[f.status]||FB_STATUS.new;
+    const last=(f.messages&&f.messages.length)?f.messages[f.messages.length-1]:null;
+    const un=fbUnread(f);
+    return `<div class="card" style="margin-bottom:9px" onclick="openFbThread('${f.id}')">
+      <div class="card-top"><div><div class="card-name" style="font-size:14px">${admin?esc(f.fromName||''):('Заявка от '+(f.date||''))}</div>
+        <div class="card-sub">${last?esc((last.text||'').slice(0,60))+((last.text||'').length>60?'…':''):''}</div></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="chip ${st.c}" style="padding:3px 10px;font-size:10px">${st.l}</span>${badge(un)}</div></div>
+    </div>`;
+  }).join('');
   document.getElementById('feedback-body').innerHTML=html;
 }
 async function sendFeedback(){
   const el=document.getElementById('fb-text');const text=(el.value||'').trim();if(!text){shake('fb-text');return;}
   el.value='';
-  const item={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),from:me.email,fromName:me.name,role:me.perm,text,date:fmtDate(new Date().toISOString().split('T')[0]),ts:Date.now(),status:'new',reply:''};
+  const item={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),from:me.email,fromName:me.name,role:me.perm,date:fmtDate(new Date().toISOString().split('T')[0]),ts:Date.now(),status:'new',messages:[{from:me.email,fromName:me.name,text,ts:Date.now()}]};
   await pushAppend(d=>{if(!Array.isArray(d.feedback))d.feedback=[];d.feedback.push(item);});
-  showToast('Заявка отправлена разработчику','ok',2500);renderFeedback();
+  showToast('Отправлено разработчику','ok',2500);renderFeedback();
 }
-function setFbStatus(id,status){const f=(db.feedback||[]).find(x=>x.id===id);if(!f)return;f.status=status;saveDB(db);renderFeedback();}
-function replyFb(id,val){const f=(db.feedback||[]).find(x=>x.id===id);if(!f)return;f.reply=(val||'').trim();if(f.status==='new')f.status='progress';saveDB(db);}
+function openFbThread(id){curFbId=id;go('s-fbthread');}
+function renderFbThread(){
+  const f=(db.feedback||[]).find(x=>x.id===curFbId);if(!f){go('s-feedback');return}
+  const admin=isAdmin();const st=FB_STATUS[f.status]||FB_STATUS.new;
+  document.getElementById('fbt-title').textContent=admin?(f.fromName||'Заявка'):'Обратная связь';
+  document.getElementById('fbt-status').innerHTML=admin?`<div style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line)">
+      <span class="chip ${f.status==='new'?'chip-em':'chip-off'}" style="padding:5px 11px" onclick="setFbStatus('${f.id}','new')">Новая</span>
+      <span class="chip ${f.status==='progress'?'chip-gold':'chip-off'}" style="padding:5px 11px" onclick="setFbStatus('${f.id}','progress')">В работе</span>
+      <span class="chip ${f.status==='done'?'chip-green':'chip-off'}" style="padding:5px 11px" onclick="setFbStatus('${f.id}','done')">Починено</span>
+    </div>`:`<div style="padding:10px 14px;border-bottom:1px solid var(--line)"><span class="chip ${st.c}" style="padding:4px 12px;font-size:11px">${st.l}</span></div>`;
+  const arr=(f.messages||[]).slice().sort((a,b)=>a.ts-b.ts);
+  markRead('fb:'+f.id);renderNav();
+  const box=document.getElementById('fbt-body');
+  box.innerHTML=arr.map(m=>{
+    const mine=m.from===me.email;
+    const t=new Date(m.ts);const hh=('0'+t.getHours()).slice(-2)+':'+('0'+t.getMinutes()).slice(-2);
+    const isDev=m.from===ADMIN_EMAIL;
+    return `<div style="display:flex;flex-direction:column;align-items:${mine?'flex-end':'flex-start'};max-width:100%">
+      ${!mine?`<div style="font-size:10px;color:${isDev?'var(--blue)':'var(--txt3)'};margin:0 4px 2px">${isDev?'Разработчик':esc(m.fromName||'')}</div>`:''}
+      <div style="max-width:80%;background:${mine?'var(--ember-bg)':'var(--bg3)'};border:1px solid ${mine?'rgba(255,87,34,.3)':'var(--line2)'};border-radius:12px;padding:8px 12px;font-size:14px;line-height:1.45;word-break:break-word">${esc(m.text)}</div>
+      <div style="font-size:9px;color:var(--txt3);margin:2px 4px 0">${hh}</div></div>`;
+  }).join('');
+  box.scrollTop=box.scrollHeight;
+}
+async function sendFbMsg(){
+  const inp=document.getElementById('fbt-input');const text=(inp.value||'').trim();if(!text)return;
+  inp.value='';const id=curFbId;const isDev=isAdmin();
+  await pushAppend(d=>{const f=(d.feedback||[]).find(x=>x.id===id);if(!f)return;if(!Array.isArray(f.messages))f.messages=[];f.messages.push({from:me.email,fromName:me.name,text,ts:Date.now()});if(isDev&&f.status==='new')f.status='progress';});
+  markRead('fb:'+id);renderFbThread();renderNav();
+}
+function setFbStatus(id,status){const f=(db.feedback||[]).find(x=>x.id===id);if(!f)return;f.status=status;saveDB(db);renderFbThread();}
 
 /* ============ FINANCE ============ */
 function fmtMoney(n){return Math.round(n||0).toLocaleString('ru-RU')}
